@@ -7,38 +7,67 @@ import Haste.Graphics.Canvas
 image :: URL
 image = "http://imgs.xkcd.com/comics/nasa_press_conference.png"
 
+data MouseState = Free | Dragging Point Point
+
 -- | Then you grab a canvas object...
 main :: IO ()
 main = concurrent $ do
   Just can <- getCanvasById "original"
   Just acan <- getCanvasById "aligned"
-  rotation <- newMVar 0
+  mouse <- newMVar Free
   background <- loadBitmap image
-  onEvent can Click (const (drawCanvas background acan rotation))
-  animate background can rotation
+  let action = updatePage mouse background can acan
+  onEvent can MouseDown $ mouseDown action mouse
+  onEvent can MouseUp $ mouseUp action mouse
+  onEvent can MouseMove $ mouseMove action mouse
+  return ()
+  -- onEvent can MouseMove mouseMove
+  -- drawCanvas background
   -- animate background acan 2
 
-drawCanvas :: Bitmap -> Canvas -> MVar Double -> CIO ()
-drawCanvas background can mAngle = do
-  Just angle <- peekMVar mAngle
-  render can $ do
-    rotate angle $ draw background (0,0)
-    color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ do
-      text (10, 160) "You can use transparency too!"
-  return ()
+mouseUp :: CIO () -> MVar MouseState -> MouseData -> CIO ()
+mouseUp action state mouse = do
+  modifyMVarIO state $ \x -> return (Free,())
+  action
 
--- | ...and use the render function to draw your image.
---   The picture type is a monad, so you can compose several pictures easily
---   using do-notation.
-animate :: Bitmap -> Canvas -> MVar Double -> CIO ()
-animate background can mAngle = do
-  -- There are several transformation functions as well. All of them take a
-  -- Picture () as their argument, and apply their transformation only to that
-  -- picture, so the user doesn't need to manage the canvas state machine
-  -- explicitly.
+mouseDown :: CIO () -> MVar MouseState -> MouseData -> CIO ()
+mouseDown action state mouse = do
+  modifyMVarIO state $ \x -> let p = floatPair (mouseCoords mouse)
+                            in return (Dragging p p,())
+  action
 
-  modifyMVarIO mAngle $ \angle -> do
-                                  return (angle + 0.01,())
-  drawCanvas background can mAngle
-  setTimer (Once 10) $ animate background can mAngle
-  return ()
+mouseMove :: CIO () -> MVar MouseState -> MouseData -> CIO ()
+mouseMove action state mouse = do
+  modifyMVarIO state $ mouseMove' (floatPair $ mouseCoords mouse)
+  action
+
+mouseMove' :: Point -> MouseState -> IO (MouseState, ())
+mouseMove' _ Free = return (Free, ())
+mouseMove' stop (Dragging start _) = return (Dragging start stop, ())
+
+updatePage :: MVar MouseState -> Bitmap -> Canvas -> Canvas -> CIO ()
+updatePage mouse background can1 can2 = do
+  drawCanvas mouse background can2
+  drawLines mouse can1
+
+drawLines :: MVar MouseState -> Canvas -> CIO ()
+drawLines mouse can = do
+  m <- peekMVar mouse
+  case m of
+    Just (Dragging start stop) -> do
+                        render can . lineWidth 1 . stroke $ line start stop
+                        return ()
+    _ -> return ()
+
+drawCanvas :: MVar MouseState -> Bitmap -> Canvas -> CIO ()
+drawCanvas mouse background can = do
+  m <- peekMVar mouse
+  case m of
+    Just (Dragging start stop) -> do
+           render can $ draw background stop
+           return ()
+    _ ->
+        return ()
+
+floatPair :: (Int, Int) -> Point
+floatPair (x,y) = (fromIntegral x, fromIntegral y)
