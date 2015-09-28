@@ -4,11 +4,13 @@ import Haste.Concurrent
 import Haste.Events
 import Haste.Graphics.Canvas
 import Data.Maybe (fromMaybe)
+import Data.List (findIndex,minimum)
 
 image :: URL
 image = "http://imgs.xkcd.com/comics/nasa_press_conference.png"
 
-data MouseState = Free | Dragging Point Point
+data Corner = NW | NE | SW | SE
+data MouseState = Free | Dragging Corner
 data BoxMap = BoxMap Point Point Point Point
 
 data CalibState = CalibState {mouse ::MouseState,
@@ -17,8 +19,21 @@ defaultCalibState = CalibState Free $ BoxMap (0,0) (0,50) (50,50) (50,0)
 
 makeFree :: CalibState -> CalibState
 makeFree (CalibState _ b) = CalibState Free b
+
+dist :: Point -> Point -> Double
+dist (x1,y1) (x2,y2) = (x1-x2)^2+(y1-y2)^2
+
 startDrag :: Point -> CalibState -> CalibState
-startDrag p (CalibState _ b) = CalibState (Dragging p p) b
+startDrag p (CalibState _ box@(BoxMap a b c d)) = CalibState (Dragging corner) box
+    where
+      dists = map (dist p) [a,b,c,d]
+      corner = case findIndex (== minimum dists) dists of
+                     Just 0 -> NW
+                     Just 1 -> SW
+                     Just 2 -> SE
+                     Just 3 -> NE
+                     Nothing -> SE -- Shouldn't happen
+
 
 
 
@@ -61,9 +76,14 @@ mouseMove action state mouse = do
 
 mouseMove' :: Point -> CalibState -> IO (CalibState, ())
 mouseMove' _ st@(CalibState Free _) = mNull st
-mouseMove' stop (CalibState (Dragging start _) (BoxMap a b _ d)) =
-    mNull (CalibState (Dragging start stop)
-                      (BoxMap a b stop d))
+mouseMove' stop (CalibState ms@(Dragging NE) (BoxMap a b c _)) =
+    mNull (CalibState ms (BoxMap a b c stop))
+mouseMove' stop (CalibState ms@(Dragging SE) (BoxMap a b _ d)) =
+    mNull (CalibState ms (BoxMap a b stop d))
+mouseMove' stop (CalibState ms@(Dragging SW) (BoxMap a _ c d)) =
+    mNull (CalibState ms (BoxMap a stop c d))
+mouseMove' stop (CalibState ms@(Dragging NW) (BoxMap _ b c d)) =
+    mNull (CalibState ms (BoxMap stop b c d))
 
 boxMove' :: Point -> BoxMap -> IO (BoxMap, ())
 boxMove' p (BoxMap a b _ d) = return (BoxMap a b p d,())
@@ -73,7 +93,7 @@ updatePage state background can1 can2 = do
   mcalib <- peekMVar state
   let calib = fromMaybe defaultCalibState mcalib
 
-  drawCanvas (mouse calib) background can2
+  drawCanvas (box calib) background can2
   drawLines (box calib) can1
 
 drawLines :: BoxMap -> Canvas -> CIO ()
@@ -84,11 +104,14 @@ drawLines (BoxMap a b c d) can = do
                                    line c d
                                    line d a
 
-drawCanvas :: MouseState -> Bitmap -> Canvas -> CIO ()
-drawCanvas (Dragging start stop) background can = do
-  render can $ draw background stop
+drawCanvas :: BoxMap -> Bitmap -> Canvas -> CIO ()
+drawCanvas (BoxMap a b c d) background can = do
+  render can $ do
+    draw background b
+    draw background c
+    draw background d
+    draw background a
   return ()
-drawCanvas Free _ _ = return ()
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
