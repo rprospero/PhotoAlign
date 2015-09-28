@@ -105,13 +105,25 @@ drawLines (BoxMap a b c d) can = do
                                    line d a
 
 drawCanvas :: BoxMap -> Bitmap -> Canvas -> CIO ()
-drawCanvas (BoxMap a b c d) background can = do
+drawCanvas box background can = do
+  let angle = getAngle box
+
   render can $ do
-    draw background b
-    draw background c
-    draw background d
-    draw background a
+    rotate angle $ draw background (0,0)
+    color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ do
+                                  text (10, 160) $ show (180/pi*angle)
   return ()
+
+getAngle :: BoxMap -> Double
+getAngle (BoxMap a b c d) = atan $ (s1+s2+s3+s4)/4
+    where
+      s1 = tan $ slope a b-pi/2
+      s2 = tan $ slope b c
+      s3 = tan $ slope c d+pi/2
+      s4 = tan $ slope d a-pi
+
+slope :: Point -> Point -> Double
+slope (x1,y1) (x2,y2) = atan2 (y2-y1) (x2-x1)
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
