@@ -1,6 +1,7 @@
 import Haste
 import Haste.App (MonadIO)
 import Haste.Concurrent
+import Haste.DOM
 import Haste.Events
 import Haste.Graphics.Canvas
 import Data.Maybe (fromMaybe)
@@ -50,18 +51,30 @@ main :: IO ()
 main = concurrent $ do
   Just can <- getCanvasById "original"
   Just acan <- getCanvasById "aligned"
+  Just filePath <- elemById "filePath"
   calibState <- newMVar defaultCalibState
-  background <- loadBitmap image
+  rawBackground <- loadBitmap image
+  background <- newMVar rawBackground
 
   let action = updatePage calibState background can acan
 
   onEvent can MouseDown $ mouseDown action calibState
   onEvent can MouseUp $ mouseUp action calibState
   onEvent can MouseMove $ mouseMove action calibState
+
+  onEvent filePath Change $ updateBitmap background
   return ()
   -- onEvent can MouseMove mouseMove
   -- drawCanvas background
   -- animate background acan 2
+
+updateBitmap :: MVar Bitmap -> () -> CIO ()
+updateBitmap background () = do
+    let image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller3.jpg"
+    rawBackground <- loadBitmap image
+    _ <- takeMVar background
+    putMVar background rawBackground
+    return ()
 
 mouseUp :: CIO () -> MVar CalibState -> MouseData -> CIO ()
 mouseUp action state mouse = do
@@ -93,7 +106,7 @@ mouseMove' stop (CalibState ms@(Dragging NW) (BoxMap _ b c d)) =
 boxMove' :: Point -> BoxMap -> IO (BoxMap, ())
 boxMove' p (BoxMap a b _ d) = return (BoxMap a b p d,())
 
-updatePage :: MVar CalibState -> Bitmap -> Canvas -> Canvas -> CIO ()
+updatePage :: MVar CalibState -> MVar Bitmap -> Canvas -> Canvas -> CIO ()
 updatePage state background can1 can2 = do
   mcalib <- peekMVar state
   let calib = fromMaybe defaultCalibState mcalib
@@ -101,24 +114,26 @@ updatePage state background can1 can2 = do
   drawCanvas (box calib) background can2
   drawLines (box calib) background can1
 
-drawLines :: BoxMap -> Bitmap -> Canvas -> CIO ()
-drawLines (BoxMap a b c d) background can = render can $ do
-                                              scale (0.1,0.1) $ draw background (0,0)
-                                              lineWidth 1 . stroke $ do
-                                                           line a b
-                                                           line b c
-                                                           line c d
-                                                           line d a
+drawLines :: BoxMap -> MVar Bitmap -> Canvas -> CIO ()
+drawLines (BoxMap a b c d) background can = do
+  Just rawBackground <- peekMVar background
+  render can $ do
+    scale (0.1,0.1) $ draw rawBackground (0,0)
+    lineWidth 1 . stroke $ do
+                 line a b
+                 line b c
+                 line c d
+                 line d a
 
 rotateAboutCenter :: Point -> Double -> Picture () -> Picture ()
 rotateAboutCenter center angle = translate ((/2) >< center) . rotate (-angle) . translate ((/(-2)) >< center)
 
-drawCanvas :: BoxMap -> Bitmap -> Canvas -> CIO ()
+drawCanvas :: BoxMap -> MVar Bitmap -> Canvas -> CIO ()
 drawCanvas box background can = do
   let angle = getAngle box
-
+  Just rawBackground <- peekMVar background
   render can $ do
-    rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw background (0,0)
+    rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw rawBackground (0,0)
     color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ text (10, 160) $ show (180/pi*angle)
   return ()
 
