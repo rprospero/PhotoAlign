@@ -19,11 +19,6 @@ imageSize = (3968,2232)
 
 f >< (a,b) = (f a, f b)
 
-
-
-mNull :: Monad m => a -> m (a,())
-mNull x = return (x, ())
-
 -- | Then you grab a canvas object...
 main :: IO ()
 main = do
