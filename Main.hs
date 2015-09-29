@@ -49,11 +49,11 @@ updatePage :: IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> IO ()
 updatePage state background can1 can2 = do
   calib <- readIORef state
 
-  drawCanvas calib background can2
-  drawLines calib background can1
+  drawAligned calib background can2
+  drawCalibration calib background can1
 
-drawLines :: CalibState -> IORef Bitmap -> Canvas -> IO ()
-drawLines calib background can = do
+drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
+drawCalibration calib background can = do
   rawBackground <- readIORef background
   render can $ do
     scale (0.1,0.1) $ draw rawBackground (0,0)
@@ -62,8 +62,8 @@ drawLines calib background can = do
 rotateAboutCenter :: Point -> Double -> Picture () -> Picture ()
 rotateAboutCenter center angle = translate ((/2) >< center) . rotate (-angle) . translate ((/(-2)) >< center)
 
-drawCanvas :: CalibState -> IORef Bitmap -> Canvas -> IO ()
-drawCanvas calib background can = do
+drawAligned :: CalibState -> IORef Bitmap -> Canvas -> IO ()
+drawAligned calib background can = do
   let angle = getAngle calib
   rawBackground <- readIORef background
   render can $ rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw rawBackground (0,0)
