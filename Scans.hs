@@ -67,7 +67,6 @@ scanShape st = forM (scans st) (\(Scan a b) -> line a b) >> return ()
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
 
-
 populateTable :: ScanState -> Elem -> IO ()
 populateTable st e = do
   clearChildren e
@@ -92,4 +91,4 @@ makeTableCell x = do
   with (newElem "td") [children [text]]
 
 makeScanRow :: Scan -> IO Elem
-makeScanRow (Scan (x1,y1) (x2,y2)) = makeTableRow [x1, y1, x2, y2]
+makeScanRow (Scan (x1,y1) (x2,y2)) = makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
