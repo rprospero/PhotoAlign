@@ -3,8 +3,7 @@ module Calibrate (initCalibState, attachEvents, boxShape, CalibState, getAngle,g
 import Data.IORef
 import Haste.Events
 import Haste.Graphics.Canvas
-import Haste.DOM
-import Data.List (elemIndex,minimum)
+import Data.List (elemIndex)
 
 data Corner = NW | NE | SW | SE
 data MouseState = Free | Dragging Corner
@@ -12,8 +11,10 @@ data BoxMap = BoxMap Point Point Point Point
 
 data CalibState = CalibState {mouse ::MouseState,
                               box :: BoxMap}
+defaultCalibState :: CalibState
 defaultCalibState = CalibState Free $ BoxMap (0,0) (0,223) (397,223) (397,0)
 
+initCalibState :: IO (IORef CalibState)
 initCalibState = newIORef defaultCalibState
 
 makeFree :: CalibState -> CalibState
@@ -21,11 +22,11 @@ makeFree (CalibState _ b) = CalibState Free b
 
 
 dist :: Point -> Point -> Double
-dist (x1,y1) (x2,y2) = (x1-x2)^2+(y1-y2)^2
+dist (x1,y1) (x2,y2) = (x1-x2)**2+(y1-y2)**2
 
 
 startDrag :: Point -> CalibState -> CalibState
-startDrag p (CalibState _ box@(BoxMap a b c d)) = CalibState (Dragging corner) box
+startDrag p (CalibState _ bx@(BoxMap a b c d)) = CalibState (Dragging corner) bx
     where
       dists = map (dist p) [a,b,c,d]
       corner = case elemIndex (minimum dists) dists of
@@ -33,31 +34,31 @@ startDrag p (CalibState _ box@(BoxMap a b c d)) = CalibState (Dragging corner) b
                      Just 1 -> SW
                      Just 2 -> SE
                      Just 3 -> NE
-                     Nothing -> SE -- Shouldn't happen
+                     _ -> SE -- Shouldn't happen
 
 attachEvents :: IORef CalibState -> Canvas -> IO () -> IO ()
 attachEvents calibState can action = do
-  onEvent can MouseDown $ mouseDown action calibState
-  onEvent can MouseUp $ mouseUp action calibState
-  onEvent can MouseMove $ mouseMove action calibState
+  _ <- onEvent can MouseDown $ mouseDown action calibState
+  _ <- onEvent can MouseUp $ mouseUp action calibState
+  _ <- onEvent can MouseMove $ mouseMove action calibState
   return ()
 
 
 
 mouseUp :: IO () -> IORef CalibState -> MouseData -> IO ()
-mouseUp action state mouse = do
+mouseUp action state _ = do
   modifyIORef' state makeFree
   action
 
 mouseDown :: IO () -> IORef CalibState -> MouseData -> IO ()
-mouseDown action state mouse = do
-  modifyIORef' state $ \x -> let p = floatPair (mouseCoords mouse)
+mouseDown action state m = do
+  modifyIORef' state $ \x -> let p = floatPair (mouseCoords m)
                             in startDrag p x
   action
 
 mouseMove :: IO () -> IORef CalibState -> MouseData -> IO ()
-mouseMove action state mouse = do
-  modifyIORef' state $ mouseMove' (floatPair $ mouseCoords mouse)
+mouseMove action state m = do
+  modifyIORef' state $ mouseMove' (floatPair $ mouseCoords m)
   action
 
 
@@ -76,9 +77,6 @@ mouseMove' stop (CalibState ms@(Dragging NW) (BoxMap _ b c d)) =
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
 
-
-boxMove' :: Point -> BoxMap -> IO (BoxMap, ())
-boxMove' p (BoxMap a b _ d) = return (BoxMap a b p d,())
 
 boxShape :: CalibState -> Shape ()
 boxShape state =
@@ -118,6 +116,7 @@ getCenter' (BoxMap (xa, ya) (xb, yb) (xc, yc) (xd, yd)) =
     (sum [xa, xb, xc, xd]/4,
      sum [ya, yb, yc, yd]/4)
 
+(><) :: (a -> b) -> (a,a) -> (b,b)
 f >< (a,b) = (f a, f b)
 
 alignImage :: Point -> CalibState -> Picture () -> Picture ()

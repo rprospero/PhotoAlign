@@ -15,11 +15,6 @@ image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
 getFilePath :: ElemID -> IO URL
 getFilePath = ffi $ Data.String.fromString "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
 
-imageSize :: Point
-imageSize = (3968,2232)
-
-f >< (a,b) = (f a, f b)
-
 -- | Then you grab a canvas object...
 main :: IO ()
 main = do
@@ -37,13 +32,13 @@ main = do
   attachEvents calibState can action
   attachScanEvents scanState acan action
 
-  onEvent filePath Change $ updateBitmap background
+  _ <- onEvent filePath Change $ updateBitmap background
   return ()
 
 updateBitmap :: IORef Bitmap -> () -> IO ()
 updateBitmap background () = do
-    image <- getFilePath "filePath"
-    rawBackground <- loadBitmap image
+    imagePath <- getFilePath "filePath"
+    rawBackground <- loadBitmap imagePath
     writeIORef background rawBackground
 
 updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> Elem -> IO ()
