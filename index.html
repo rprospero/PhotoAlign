@@ -4,19 +4,23 @@
     <form>
       <input type="file" id="filePath">
     </form>
-    <table>
-      <tr>
-        <td>
-          <canvas id="aligned" style="border: 1px solid black;position: relative" width="400" height="400"></canvas>
-        </td>
-      </tr>
-      <tr>
-        <td>
-          <canvas id="original" style="border: 1px solid black;position: relative" width="397" height="223"></canvas>
-        </td>
-      </tr>
-    </table>
-    <table id="scans">
-    </table>
+    <div id="images" style="float: left">
+      <table>
+        <tr>
+          <td>
+            <canvas id="aligned" style="border: 1px solid black;position: relative" width="400" height="400"></canvas>
+          </td>
+        </tr>
+        <tr>
+          <td>
+            <canvas id="original" style="border: 1px solid black;position: relative" width="397" height="223"></canvas>
+          </td>
+        </tr>
+      </table>
+    </div>
+    <div id="results" style="float: right">
+      <table id="scans">
+      </table>
+    </div>
   </body>
 </html>
