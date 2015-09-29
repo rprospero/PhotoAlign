@@ -1,12 +1,17 @@
 import Haste
 import Haste.DOM
 import Haste.Events
+import Haste.Foreign
 import Haste.Graphics.Canvas
 import Data.List (elemIndex,minimum)
 import Data.IORef
+import Data.String
 
 image :: URL
 image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
+
+getFilePath :: ElemID -> IO URL
+getFilePath = ffi $ Data.String.fromString "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
 
 imageSize :: Point
 imageSize = (3968,2232)
@@ -68,7 +73,7 @@ main = do
 
 updateBitmap :: IORef Bitmap -> () -> IO ()
 updateBitmap background () = do
-    let image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller3.jpg"
+    image <- getFilePath "filePath"
     rawBackground <- loadBitmap image
     writeIORef background rawBackground
 
