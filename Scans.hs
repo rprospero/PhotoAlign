@@ -40,7 +40,15 @@ updateHead :: MouseData -> ScanState -> ScanState
 updateHead _ st@(ScanState Free _) = st
 updateHead _ st@(ScanState Dragging []) = st
 updateHead mouse (ScanState Dragging (s:ss)) =
-    ScanState Dragging $ (Scan (start s) $ floatPair $ mouseCoords mouse):ss
+    ScanState Dragging $ (axisScan (start s) $ floatPair $ mouseCoords mouse):ss
+
+axisScan :: Point -> Point -> Scan
+axisScan p p2 = Scan p $ ending p p2
+    where
+      ending (x1,y1) (x2,y2) =
+          if abs (y2 - y1) > abs (x2 - x1)
+          then (x1, y2)
+          else (x2, y1)
 
 mouseDown :: IO () -> IORef ScanState -> MouseData -> IO ()
 mouseDown action state mouse = do
