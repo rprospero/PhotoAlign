@@ -63,14 +63,10 @@ drawCalibration calib background can = do
     scale (0.1,0.1) $ draw rawBackground (0,0)
     lineWidth 1 . stroke $ boxShape calib
 
-rotateAboutCenter :: Point -> Double -> Picture () -> Picture ()
-rotateAboutCenter center angle = translate ((/2) >< center) . rotate (-angle) . translate ((/(-2)) >< center)
-
 drawAligned :: ScanState -> CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawAligned scan calib background can = do
-  let angle = getAngle calib
   rawBackground <- readIORef background
   render can $ do
-    rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw rawBackground (0,0)
+    alignImage (400,400) calib $ scale (0.1,0.1) $ draw rawBackground (0,0)
     lineWidth 1 . stroke $ scanShape scan
   return ()

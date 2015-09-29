@@ -1,4 +1,4 @@
-module Calibrate (initCalibState, attachEvents, boxShape, CalibState, getAngle) where
+module Calibrate (initCalibState, attachEvents, boxShape, CalibState, getAngle,getScale,alignImage) where
 
 import Data.IORef
 import Haste.Events
@@ -83,10 +83,7 @@ boxMove' p (BoxMap a b _ d) = return (BoxMap a b p d,())
 boxShape :: CalibState -> Shape ()
 boxShape state =
     let (BoxMap a b c d) = box state
-    in do line a b
-          line b c
-          line c d
-          line d a
+    in path [a, b, c, d, a]
 
 getAngle :: CalibState -> Double
 getAngle = getAngle' . box
@@ -101,3 +98,31 @@ getAngle' (BoxMap a b c d) = atan $ (s1+s2+s3+s4)/4
 
 slope :: Point -> Point -> Double
 slope (x1,y1) (x2,y2) = atan2 (y2-y1) (x2-x1)
+
+-- The shoelace formula for the area of a triangle
+shoelace :: Point -> Point -> Point -> Double
+shoelace (xa, ya) (xb, yb) (xc, yc) =
+    0.5*(xa*yb+xb*yc+xc*ya-xa*yc-xc*yb-xb*ya)
+
+boxArea :: BoxMap -> Double
+boxArea (BoxMap a b c d) = shoelace a d c + shoelace d c b
+
+getScale :: Point -> CalibState -> Double
+getScale (width,height) state = width*height/boxArea (box state)
+
+getCenter :: CalibState -> Point
+getCenter = getCenter' . box
+
+getCenter' :: BoxMap -> Point
+getCenter' (BoxMap (xa, ya) (xb, yb) (xc, yc) (xd, yd)) =
+    (sum [xa, xb, xc, xd]/4,
+     sum [ya, yb, yc, yd]/4)
+
+f >< (a,b) = (f a, f b)
+
+alignImage :: Point -> CalibState -> Picture () -> Picture ()
+alignImage size st = do
+  let angle = getAngle st
+      scl = getScale size st
+      cen = getCenter st
+  translate ((/2) >< size) . scale (sqrt scl, sqrt scl) . rotate (-angle) . translate ((/(-1)) >< cen)
