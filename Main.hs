@@ -26,12 +26,13 @@ main = do
   Just can <- getCanvasById "original"
   Just acan <- getCanvasById "aligned"
   Just filePath <- elemById "filePath"
+  Just tbl <- elemById "scans"
   calibState <- initCalibState
   scanState <- initScanState
   rawBackground <- loadBitmap image
   background <- newIORef rawBackground
 
-  let action = updatePage scanState calibState background can acan
+  let action = updatePage scanState calibState background can acan tbl
 
   attachEvents calibState can action
   attachScanEvents scanState acan action
@@ -45,10 +46,12 @@ updateBitmap background () = do
     rawBackground <- loadBitmap image
     writeIORef background rawBackground
 
-updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> IO ()
-updatePage scan state background can1 can2 = do
+updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> Elem -> IO ()
+updatePage scan state background can1 can2 tbl = do
   calib <- readIORef state
   scan <- readIORef scan
+
+  populateTable scan tbl
 
   drawAligned scan calib background can2
   drawCalibration calib background can1
