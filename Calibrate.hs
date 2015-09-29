@@ -12,7 +12,7 @@ data BoxMap = BoxMap Point Point Point Point
 
 data CalibState = CalibState {mouse ::MouseState,
                               box :: BoxMap}
-defaultCalibState = CalibState Free $ BoxMap (0,0) (0,50) (50,50) (50,0)
+defaultCalibState = CalibState Free $ BoxMap (0,0) (0,223) (397,223) (397,0)
 
 initCalibState = newIORef defaultCalibState
 
