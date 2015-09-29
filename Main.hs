@@ -35,9 +35,6 @@ main = do
 
   onEvent filePath Change $ updateBitmap background
   return ()
-  -- onEvent can MouseMove mouseMove
-  -- drawCanvas background
-  -- animate background acan 2
 
 updateBitmap :: IORef Bitmap -> () -> IO ()
 updateBitmap background () = do
