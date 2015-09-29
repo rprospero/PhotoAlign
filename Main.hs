@@ -4,10 +4,15 @@ import Haste.Concurrent
 import Haste.Events
 import Haste.Graphics.Canvas
 import Data.Maybe (fromMaybe)
-import Data.List (findIndex,minimum)
+import Data.List (elemIndex,minimum)
 
 image :: URL
-image = "http://imgs.xkcd.com/comics/nasa_press_conference.png"
+image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
+
+imageSize :: Point
+imageSize = (3968,2232)
+
+f >< (a,b) = (f a, f b)
 
 data Corner = NW | NE | SW | SE
 data MouseState = Free | Dragging Corner
@@ -27,7 +32,7 @@ startDrag :: Point -> CalibState -> CalibState
 startDrag p (CalibState _ box@(BoxMap a b c d)) = CalibState (Dragging corner) box
     where
       dists = map (dist p) [a,b,c,d]
-      corner = case findIndex (== minimum dists) dists of
+      corner = case elemIndex (minimum dists) dists of
                      Just 0 -> NW
                      Just 1 -> SW
                      Just 2 -> SE
@@ -94,24 +99,27 @@ updatePage state background can1 can2 = do
   let calib = fromMaybe defaultCalibState mcalib
 
   drawCanvas (box calib) background can2
-  drawLines (box calib) can1
+  drawLines (box calib) background can1
 
-drawLines :: BoxMap -> Canvas -> CIO ()
-drawLines (BoxMap a b c d) can = do
-  render can . lineWidth 1 . stroke $ do
-                                   line a b
-                                   line b c
-                                   line c d
-                                   line d a
+drawLines :: BoxMap -> Bitmap -> Canvas -> CIO ()
+drawLines (BoxMap a b c d) background can = render can $ do
+                                              scale (0.1,0.1) $ draw background (0,0)
+                                              lineWidth 1 . stroke $ do
+                                                           line a b
+                                                           line b c
+                                                           line c d
+                                                           line d a
+
+rotateAboutCenter :: Point -> Double -> Picture () -> Picture ()
+rotateAboutCenter center angle = translate ((/2) >< center) . rotate (-angle) . translate ((/(-2)) >< center)
 
 drawCanvas :: BoxMap -> Bitmap -> Canvas -> CIO ()
 drawCanvas box background can = do
   let angle = getAngle box
 
   render can $ do
-    rotate angle $ draw background (0,0)
-    color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ do
-                                  text (10, 160) $ show (180/pi*angle)
+    rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw background (0,0)
+    color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ text (10, 160) $ show (180/pi*angle)
   return ()
 
 getAngle :: BoxMap -> Double
