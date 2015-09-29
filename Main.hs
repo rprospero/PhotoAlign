@@ -1,11 +1,9 @@
 import Haste
-import Haste.App (MonadIO)
-import Haste.Concurrent
 import Haste.DOM
 import Haste.Events
 import Haste.Graphics.Canvas
-import Data.Maybe (fromMaybe)
 import Data.List (elemIndex,minimum)
+import Data.IORef
 
 image :: URL
 image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
@@ -48,13 +46,13 @@ mNull x = return (x, ())
 
 -- | Then you grab a canvas object...
 main :: IO ()
-main = concurrent $ do
+main = do
   Just can <- getCanvasById "original"
   Just acan <- getCanvasById "aligned"
   Just filePath <- elemById "filePath"
-  calibState <- newMVar defaultCalibState
+  calibState <- newIORef defaultCalibState
   rawBackground <- loadBitmap image
-  background <- newMVar rawBackground
+  background <- newIORef rawBackground
 
   let action = updatePage calibState background can acan
 
@@ -68,55 +66,52 @@ main = concurrent $ do
   -- drawCanvas background
   -- animate background acan 2
 
-updateBitmap :: MVar Bitmap -> () -> CIO ()
+updateBitmap :: IORef Bitmap -> () -> IO ()
 updateBitmap background () = do
     let image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller3.jpg"
     rawBackground <- loadBitmap image
-    _ <- takeMVar background
-    putMVar background rawBackground
-    return ()
+    writeIORef background rawBackground
 
-mouseUp :: CIO () -> MVar CalibState -> MouseData -> CIO ()
+mouseUp :: IO () -> IORef CalibState -> MouseData -> IO ()
 mouseUp action state mouse = do
-  modifyMVarIO state $ mNull . makeFree
+  modifyIORef' state makeFree
   action
 
-mouseDown :: CIO () -> MVar CalibState -> MouseData -> CIO ()
+mouseDown :: IO () -> IORef CalibState -> MouseData -> IO ()
 mouseDown action state mouse = do
-  modifyMVarIO state $ \x -> let p = floatPair (mouseCoords mouse)
-                            in mNull (startDrag p x)
+  modifyIORef' state $ \x -> let p = floatPair (mouseCoords mouse)
+                            in startDrag p x
   action
 
-mouseMove :: CIO () -> MVar CalibState -> MouseData -> CIO ()
+mouseMove :: IO () -> IORef CalibState -> MouseData -> IO ()
 mouseMove action state mouse = do
-  modifyMVarIO state $ mouseMove' (floatPair $ mouseCoords mouse)
+  modifyIORef' state $ mouseMove' (floatPair $ mouseCoords mouse)
   action
 
-mouseMove' :: Point -> CalibState -> IO (CalibState, ())
-mouseMove' _ st@(CalibState Free _) = mNull st
+mouseMove' :: Point -> CalibState -> CalibState
+mouseMove' _ st@(CalibState Free _) = st
 mouseMove' stop (CalibState ms@(Dragging NE) (BoxMap a b c _)) =
-    mNull (CalibState ms (BoxMap a b c stop))
+    CalibState ms (BoxMap a b c stop)
 mouseMove' stop (CalibState ms@(Dragging SE) (BoxMap a b _ d)) =
-    mNull (CalibState ms (BoxMap a b stop d))
+    CalibState ms (BoxMap a b stop d)
 mouseMove' stop (CalibState ms@(Dragging SW) (BoxMap a _ c d)) =
-    mNull (CalibState ms (BoxMap a stop c d))
+    CalibState ms (BoxMap a stop c d)
 mouseMove' stop (CalibState ms@(Dragging NW) (BoxMap _ b c d)) =
-    mNull (CalibState ms (BoxMap stop b c d))
+    CalibState ms (BoxMap stop b c d)
 
 boxMove' :: Point -> BoxMap -> IO (BoxMap, ())
 boxMove' p (BoxMap a b _ d) = return (BoxMap a b p d,())
 
-updatePage :: MVar CalibState -> MVar Bitmap -> Canvas -> Canvas -> CIO ()
+updatePage :: IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> IO ()
 updatePage state background can1 can2 = do
-  mcalib <- peekMVar state
-  let calib = fromMaybe defaultCalibState mcalib
+  calib <- readIORef state
 
   drawCanvas (box calib) background can2
   drawLines (box calib) background can1
 
-drawLines :: BoxMap -> MVar Bitmap -> Canvas -> CIO ()
+drawLines :: BoxMap -> IORef Bitmap -> Canvas -> IO ()
 drawLines (BoxMap a b c d) background can = do
-  Just rawBackground <- peekMVar background
+  rawBackground <- readIORef background
   render can $ do
     scale (0.1,0.1) $ draw rawBackground (0,0)
     lineWidth 1 . stroke $ do
@@ -128,10 +123,10 @@ drawLines (BoxMap a b c d) background can = do
 rotateAboutCenter :: Point -> Double -> Picture () -> Picture ()
 rotateAboutCenter center angle = translate ((/2) >< center) . rotate (-angle) . translate ((/(-2)) >< center)
 
-drawCanvas :: BoxMap -> MVar Bitmap -> Canvas -> CIO ()
+drawCanvas :: BoxMap -> IORef Bitmap -> Canvas -> IO ()
 drawCanvas box background can = do
   let angle = getAngle box
-  Just rawBackground <- peekMVar background
+  rawBackground <- readIORef background
   render can $ do
     rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw rawBackground (0,0)
     color (RGBA 0 0 255 0.5) . font "20px Bitstream Vera" $ text (10, 160) $ show (180/pi*angle)
