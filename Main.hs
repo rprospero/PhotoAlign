@@ -7,6 +7,7 @@ import Data.IORef
 import Data.String
 
 import Calibrate
+import Scans
 
 image :: URL
 image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
@@ -26,12 +27,14 @@ main = do
   Just acan <- getCanvasById "aligned"
   Just filePath <- elemById "filePath"
   calibState <- initCalibState
+  scanState <- initScanState
   rawBackground <- loadBitmap image
   background <- newIORef rawBackground
 
-  let action = updatePage calibState background can acan
+  let action = updatePage scanState calibState background can acan
 
   attachEvents calibState can action
+  attachScanEvents scanState acan action
 
   onEvent filePath Change $ updateBitmap background
   return ()
@@ -42,11 +45,12 @@ updateBitmap background () = do
     rawBackground <- loadBitmap image
     writeIORef background rawBackground
 
-updatePage :: IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> IO ()
-updatePage state background can1 can2 = do
+updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> IO ()
+updatePage scan state background can1 can2 = do
   calib <- readIORef state
+  scan <- readIORef scan
 
-  drawAligned calib background can2
+  drawAligned scan calib background can2
   drawCalibration calib background can1
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
@@ -59,9 +63,11 @@ drawCalibration calib background can = do
 rotateAboutCenter :: Point -> Double -> Picture () -> Picture ()
 rotateAboutCenter center angle = translate ((/2) >< center) . rotate (-angle) . translate ((/(-2)) >< center)
 
-drawAligned :: CalibState -> IORef Bitmap -> Canvas -> IO ()
-drawAligned calib background can = do
+drawAligned :: ScanState -> CalibState -> IORef Bitmap -> Canvas -> IO ()
+drawAligned scan calib background can = do
   let angle = getAngle calib
   rawBackground <- readIORef background
-  render can $ rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw rawBackground (0,0)
+  render can $ do
+    rotateAboutCenter ((/ 20) >< imageSize) angle $ scale (0.1,0.1) $ draw rawBackground (0,0)
+    lineWidth 1 . stroke $ scanShape scan
   return ()
