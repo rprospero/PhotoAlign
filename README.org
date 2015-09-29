@@ -1,0 +1,3 @@
+* PhotoAlign
+
+This is a small Haskell script to setup scans for a large number of x-ray measurements.
