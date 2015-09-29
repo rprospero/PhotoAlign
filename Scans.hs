@@ -1,6 +1,7 @@
-module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable) where
+module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan) where
 
 import Data.IORef
+import Data.List (delete)
 import Haste.DOM
 import Haste.Events
 import Haste.Graphics.Canvas
@@ -9,6 +10,7 @@ import Control.Monad (forM,(>=>))
 
 data Scan = Scan {start :: Point,
                   stop :: Point}
+            deriving Eq
 
 data MouseState = Free | Dragging
 
@@ -61,22 +63,24 @@ startDrag :: Point -> ScanState -> ScanState
 startDrag p st = ScanState Dragging $ (Scan p p):scans st
 
 
-scanShape :: ScanState -> Shape ()
-scanShape st = forM (scans st) (\(Scan a b) -> line a b) >> return ()
+scanShape :: ScanState -> Picture ()
+scanShape st = lineWidth 1 . stroke $ forM (scans st) (\(Scan a b) -> line a b) >> return ()
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
 
-populateTable :: ScanState -> Elem -> IO ()
-populateTable st e = do
+type Killer = Scan -> IO ()
+
+populateTable :: Killer -> ScanState -> Elem -> IO ()
+populateTable k st e = do
   clearChildren e
   header <- makeTableHeader
   appendChild e header
-  forM (reverse $ scans st) (makeScanRow >=> appendChild e)
+  forM (reverse $ scans st) (makeScanRow k >=> appendChild e)
   return ()
 
 makeTableHeader :: IO Elem
-makeTableHeader = makeTableRow ["x1","y1","x2","y2"]
+makeTableHeader = makeTableRow ["x1","y1","x2","y2","Delete"]
 
 makeTableRow :: (Show a) => [a] -> IO Elem
 makeTableRow xs = do
@@ -90,5 +94,16 @@ makeTableCell x = do
   text <- newTextElem $ show x
   with (newElem "td") [children [text]]
 
-makeScanRow :: Scan -> IO Elem
-makeScanRow (Scan (x1,y1) (x2,y2)) = makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
+makeScanRow :: Killer -> Scan -> IO Elem
+makeScanRow k sc@(Scan (x1,y1) (x2,y2)) = do
+  row <- makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
+  buttonText <- newTextElem "Delete"
+  deleteButton <- with (newElem "button") [children [buttonText]]
+  appendChild row deleteButton
+  onEvent deleteButton Click $ const (k sc)
+  return row
+
+dropScan :: IO () -> IORef ScanState -> Scan -> IO ()
+dropScan action scanState s = do
+  modifyIORef' scanState (\x -> x{scans = delete s $scans x})
+  action

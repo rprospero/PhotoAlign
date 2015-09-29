@@ -47,11 +47,13 @@ updateBitmap background () = do
     writeIORef background rawBackground
 
 updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> Elem -> IO ()
-updatePage scan state background can1 can2 tbl = do
+updatePage scanState state background can1 can2 tbl = do
   calib <- readIORef state
-  scan <- readIORef scan
+  scan <- readIORef scanState
 
-  populateTable scan tbl
+  let action = updatePage scanState state background can1 can2 tbl
+
+  populateTable (dropScan action scanState) scan tbl
 
   drawAligned scan calib background can2
   drawCalibration calib background can1
@@ -68,5 +70,5 @@ drawAligned scan calib background can = do
   rawBackground <- readIORef background
   render can $ do
     alignImage (400,400) calib $ scale (0.1,0.1) $ draw rawBackground (0,0)
-    lineWidth 1 . stroke $ scanShape scan
+    scanShape scan
   return ()
