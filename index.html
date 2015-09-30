@@ -4,45 +4,41 @@
   </head>
   <body>
     <script src="Main.js"></script>
-    <div id="images" style="float: left">
-      <table>
-        <tr>
-          <td>
-            <canvas id="aligned" style="border: 1px solid black;position: relative" width="400" height="400"></canvas>
-          </td>
-        </tr>
-        <tr>
-          <td>
-            <canvas id="original" style="border: 1px solid black;position: relative" width="397" height="223"></canvas>
-          </td>
-        </tr>
-      </table>
+    <div class="row">
+      <div class="col-md-12 text-center">
+        <div class="btn-group" role="group">
+          <form>
+            <label class="btn btn-primary" for="filePath">
+              <span class="glyphicon glyphicon-picture" aria-hidden="true"></span>
+            </label>
+            <input class="hidden" type="file" id="filePath">
+
+            <a href="index.html" id="exportLink"
+               class="btn btn-primary"
+               download="scans.txt">
+              <span class="glyphicon glyphicon-share" aria-hidden="true"></span>
+            </a>
+            <a href="index.html" id="saveLink"
+               class="btn btn-primary"
+               download="dump.json">
+              <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
+            </a>
+
+            <label for="loadPath" class="btn btn-primary">
+              <span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span>
+            </label>
+            <input type="file" id="loadPath" class="hidden">
+          </form>
+        </div>
+      </div>
     </div>
-    <div id="results" style="float: right">
-      <form>
-        <label class="btn btn-primary" for="filePath">
-          <span class="glyphicon glyphicon-picture" aria-hidden="true"></span>
-        </label>
-        <input class="hidden" type="file" id="filePath">
 
-        <a href="index.html" id="exportLink"
-           class="btn btn-primary"
-           download="scans.txt">
-          <span class="glyphicon glyphicon-share" aria-hidden="true"></span>
-        </a>
-        <a href="index.html" id="saveLink"
-           class="btn btn-primary"
-           download="dump.json">
-          <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
-        </a>
-
-        <label for="loadPath" class="btn btn-primary">
-          <span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span>
-        </label>
-        <input type="file" id="loadPath" class="hidden">
-      </form>
-
-      <table id="scans">
+    <div class="row">
+      <canvas id="aligned" style="border: 1px solid black;position: relative" width="400" height="400"></canvas>
+      <canvas id="original" style="border: 1px solid black;position: relative" width="397" height="223"></canvas>
+    </div>
+    <div id="results" class="row">
+      <table id="scans" class="table">
       </table>
     </div>
   </body>
