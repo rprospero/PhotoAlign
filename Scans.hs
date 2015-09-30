@@ -105,7 +105,14 @@ populateTable k st e = do
   return ()
 
 makeTableHeader :: IO Elem
-makeTableHeader = makeTableRow ["x1","y1","x2","y2","Delete"]
+makeTableHeader = do
+  hs <- mapM makeTableHeader' ["x1","y1","x2","y2","Delete"]
+  newElem "tr" `with` [children hs]
+
+makeTableHeader' :: String -> IO Elem
+makeTableHeader' x = do
+    txt <- newTextElem x
+    newElem "th" `with` [children [txt]]
 
 makeTableRow :: (Show a) => [a] -> IO Elem
 makeTableRow xs = do
