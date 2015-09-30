@@ -26,6 +26,9 @@ image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
 getFilePath :: ElemID -> IO URL
 getFilePath = ffi $ Data.String.fromString "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
 
+getFileName :: ElemID -> IO String
+getFileName = ffi $ Data.String.fromString "(function(x){return document.getElementById(x).value;})"
+
 readAsText :: JSString -> ElemID -> IO ()
 readAsText = ffi $ "function(name,x){var r = new FileReader;r.onload=function(q){Haste[name](q.target.result)};r.readAsText(document.getElementById(x).files[0]);}"
 
@@ -41,6 +44,7 @@ main = do
   scanState <- initScanState
   rawBackground <- loadBitmap image
   background <- newIORef rawBackground
+  imageName <- newIORef "IndianRoller2.jpg"
 
   let action = updatePage scanState calibState background can acan tbl
 
@@ -49,15 +53,19 @@ main = do
 
   export "processDump" (processDump calibState scanState)
 
-  _ <- onEvent filePath Change $ updateBitmap background
+  _ <- onEvent filePath Change $ updateBitmap background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
   return ()
 
-updateBitmap :: IORef Bitmap -> () -> IO ()
-updateBitmap background () = do
+updateBitmap :: IORef Bitmap -> IORef String -> () -> IO ()
+updateBitmap background nameRef () = do
     imagePath <- getFilePath "filePath"
     rawBackground <- loadBitmap imagePath
     writeIORef background rawBackground
+    imageName <- Main.getFileName "filePath"
+    writeIORef nameRef imageName
+    Just saveLink <- elemById "saveLink"
+    setAttr saveLink "download" $ imageName <> ".json"
 
 processDump :: IORef CalibState -> IORef ScanState -> JSString -> IO ()
 processDump c s result = do
