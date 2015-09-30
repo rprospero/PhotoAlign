@@ -1,9 +1,9 @@
 <html>
+  <head>
+    <link rel=StyleSheet HREF="bootstrap/css/bootstrap.min.css" />
+  </head>
   <body>
     <script src="Main.js"></script>
-    <form>
-      <input type="file" id="filePath">
-    </form>
     <div id="images" style="float: left">
       <table>
         <tr>
@@ -19,12 +19,27 @@
       </table>
     </div>
     <div id="results" style="float: right">
-      <a href="index.html" id="exportLink" download="scans.txt">Export</a>
-
-      <a href="index.html" id="saveLink" download="dump.json">Save</a>
-
       <form>
-        <input type="file" id="loadPath">
+        <label class="btn btn-primary" for="filePath">
+          <span class="glyphicon glyphicon-picture" aria-hidden="true"></span>
+        </label>
+        <input class="hidden" type="file" id="filePath">
+
+        <a href="index.html" id="exportLink"
+           class="btn btn-primary"
+           download="scans.txt">
+          <span class="glyphicon glyphicon-share" aria-hidden="true"></span>
+        </a>
+        <a href="index.html" id="saveLink"
+           class="btn btn-primary"
+           download="dump.json">
+          <span class="glyphicon glyphicon-save" aria-hidden="true"></span>
+        </a>
+
+        <label for="loadPath" class="btn btn-primary">
+          <span class="glyphicon glyphicon-folder-open" aria-hidden="true"></span>
+        </label>
+        <input type="file" id="loadPath" class="hidden">
       </form>
 
       <table id="scans">
