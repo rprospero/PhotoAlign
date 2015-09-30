@@ -1,7 +1,7 @@
-module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan) where
+module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan,toFile) where
 
 import Data.IORef
-import Data.List (delete)
+import Data.List (delete,intercalate)
 import Haste.DOM
 import Haste.Events
 import Haste.Graphics.Canvas
@@ -110,3 +110,9 @@ dropScan :: IO () -> IORef ScanState -> Scan -> IO ()
 dropScan action scanState s = do
   modifyIORef' scanState (\x -> x{scans = delete s $scans x})
   action
+
+toFile :: ScanState -> String
+toFile = intercalate "\n" . map fileLineScan . reverse . scans
+
+fileLineScan :: Scan -> String
+fileLineScan (Scan (x1, y1) (x2, y2)) = intercalate "\t" . map show $ map ((* 25) . (/ 400)) [x1,y1,x2,y2]

@@ -5,6 +5,7 @@ import Haste.Foreign
 import Haste.Graphics.Canvas
 import Data.IORef
 import Data.String
+import Data.Monoid
 
 import Calibrate
 import Scans
@@ -53,6 +54,8 @@ updatePage scanState state background can1 can2 tbl = do
   drawAligned scan calib background can2
   drawCalibration calib background can1
 
+  fileSave "saveLink" $ toFile scan
+
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawCalibration calib background can = do
   rawBackground <- readIORef background
@@ -67,3 +70,13 @@ drawAligned scan calib background can = do
     alignImage (400,400) calib $ scale (0.1,0.1) $ draw rawBackground (0,0)
     scanShape scan
   return ()
+
+fileSave :: ElemID -> String -> IO()
+fileSave e contents = do
+  Just elem <- elemById e
+  encoded <- encodeURIComponent contents
+  let uri = "data:text/plain;charset=utf-8," <> encoded
+  setAttr elem "href" uri
+
+encodeURIComponent :: String -> IO String
+encodeURIComponent = ffi (Data.String.fromString "encodeURIComponent")
