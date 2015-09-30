@@ -1,20 +1,42 @@
-module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan,toFile) where
+{-# LANGUAGE OverloadedStrings #-}
+
+module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan,toFile,MouseState) where
 
 import Data.IORef
 import Data.List (delete,intercalate)
+import Haste
 import Haste.DOM
+import Haste.JSON
 import Haste.Events
 import Haste.Graphics.Canvas
 import Control.Monad (forM,(>=>))
 
+import JSON
+
 data Scan = Scan {start :: Point,
                   stop :: Point}
-            deriving Eq
+            deriving (Show, Eq)
+instance JSONable Scan where
+    toJSON s = Arr . map toJSON $ [start s,stop s]
+    fromJSON (Arr ss) = Scan <$> fromJSON (ss !! 0) <*> fromJSON (ss !! 1)
+    fromJSON _ = Nothing
 
 data MouseState = Free | Dragging
+                  deriving (Show,Eq)
+instance JSONable MouseState where
+    toJSON = Str . toJSString . show
+    fromJSON (Str x) = case fromJSStr x of
+                         "Dragging" -> Just Dragging
+                         "Free" -> Just Free
+                         _ -> Nothing
+    fromJSON _ = Nothing
 
 data ScanState = ScanState {mouse :: MouseState,
                             scans :: [Scan]}
+                 deriving (Eq,Show)
+instance JSONable ScanState where
+    toJSON s = Dict . zip ["mouse","scans"] $ [toJSON $ mouse s,toJSON $ scans s]
+    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans")
 
 defaultScanState :: ScanState
 defaultScanState = ScanState Free []

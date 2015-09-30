@@ -1,16 +1,64 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Calibrate (initCalibState, attachEvents, boxShape, CalibState, getAngle,getScale,alignImage) where
 
 import Data.IORef
+import Haste
 import Haste.Events
 import Haste.Graphics.Canvas
+import Haste.JSON
 import Data.List (elemIndex)
 
+import JSON
+
 data Corner = NW | NE | SW | SE
+            deriving (Show,Eq)
+instance JSONable Corner where
+    toJSON = Str . toJSString . show
+    fromJSON (Str x) = case fromJSStr x of
+                         "NW" -> Just NW
+                         "SW" -> Just SW
+                         "NE" -> Just NE
+                         "SE" -> Just SE
+                         _ -> Nothing
+    fromJSON _ = Nothing
+
 data MouseState = Free | Dragging Corner
+                  deriving (Show, Eq)
+instance JSONable MouseState where
+    toJSON Free = Dict [("state","Free")]
+    toJSON (Dragging c) = Dict [("state","Dragging"),
+                                ("corner",toJSON c)]
+    fromJSON d = do
+      state <- d ~> "state"
+      case encodeJSON state of
+        "Free" -> Just Free
+        "Dragging" -> do
+                   corner <- d ~> "corner"
+                   Dragging <$> fromJSON corner
+        _ -> Nothing
+
 data BoxMap = BoxMap Point Point Point Point
+              deriving (Eq,Show)
+instance JSONable BoxMap where
+    toJSON (BoxMap a b c d) = Arr . map toJSON $ [a,b,c,d]
+    fromJSON (Arr ps) = let points = map fromJSON ps
+                        in BoxMap <$> (points !! 0)
+                               <*> (points !! 1)
+                               <*> (points !! 2)
+                               <*> (points !! 3)
+    fromJSON _ = Nothing
+
 
 data CalibState = CalibState {mouse ::MouseState,
                               box :: BoxMap}
+                  deriving (Eq,Show)
+instance JSONable CalibState where
+    toJSON calib = Dict [("mouse",toJSON $ mouse calib),
+                         ("box",toJSON $ box calib)]
+    -- fromJSON d = CalibState <$> (d ~~> "mouse") <*> (d ~~> "box")
+    fromJSON d = CalibState <$> pure Free <*> (d ~~> "box")
+
 defaultCalibState :: CalibState
 defaultCalibState = CalibState Free $ BoxMap (0,0) (0,223) (397,223) (397,0)
 
