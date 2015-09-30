@@ -35,19 +35,18 @@ readAsText = ffi $ "function(name,x){var r = new FileReader;r.onload=function(q)
 -- | Then you grab a canvas object...
 main :: IO ()
 main = do
-  Just can <- getCanvasById "original"
-  Just acan <- getCanvasById "aligned"
   Just filePath <- elemById "filePath"
   Just loadPath <- elemById "loadPath"
-  Just tbl <- elemById "scans"
   calibState <- initCalibState
   scanState <- initScanState
   rawBackground <- loadBitmap image
   background <- newIORef rawBackground
   imageName <- newIORef "IndianRoller2.jpg"
 
-  let action = updatePage scanState calibState background can acan tbl
+  let action = updatePage scanState calibState background
 
+  Just can <- getCanvasById "original"
+  Just acan <- getCanvasById "aligned"
   attachEvents calibState can action
   attachScanEvents scanState acan action
 
@@ -77,12 +76,16 @@ processDump c s result = do
                            writeIORef s $ scandata d
                    Nothing -> print "Unparsed" >> print result
 
-updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> Canvas -> Canvas -> Elem -> IO ()
-updatePage scanState state background can1 can2 tbl = do
+updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> IO ()
+updatePage scanState state background = do
   calib <- readIORef state
   scan <- readIORef scanState
 
-  let action = updatePage scanState state background can1 can2 tbl
+  Just can1 <- getCanvasById "original"
+  Just can2 <- getCanvasById "aligned"
+  Just tbl <- elemById "scans"
+
+  let action = updatePage scanState state background
 
   populateTable (dropScan action scanState) scan tbl
 
