@@ -21,7 +21,7 @@ instance JSONable StateDump where
     fromJSON d = StateDump <$> (d ~~> "calib") <*> (d ~~> "scans")
 
 image :: URL
-image = "file:///home/adam/Science/sax-data/FeatherPhotos/IndianRoller2.jpg"
+image = "IndianRoller2.jpg"
 
 getFilePath :: ElemID -> IO URL
 getFilePath = ffi $ Data.String.fromString "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
