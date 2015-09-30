@@ -52,12 +52,12 @@ main = do
 
   export "processDump" (processDump calibState scanState)
 
-  _ <- onEvent filePath Change $ updateBitmap background imageName
+  _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  return ()
+  action
 
-updateBitmap :: IORef Bitmap -> IORef String -> () -> IO ()
-updateBitmap background nameRef () = do
+updateBitmap :: IO () -> IORef Bitmap -> IORef String -> () -> IO ()
+updateBitmap action background nameRef () = do
     imagePath <- getFilePath "filePath"
     rawBackground <- loadBitmap imagePath
     writeIORef background rawBackground
@@ -65,6 +65,10 @@ updateBitmap background nameRef () = do
     writeIORef nameRef imageName
     Just saveLink <- elemById "saveLink"
     setAttr saveLink "download" $ imageName <> ".json"
+
+    Just exportLink <- elemById "exportLink"
+    setAttr exportLink "download" $ imageName <> ".txt"
+    action
 
 processDump :: IORef CalibState -> IORef ScanState -> JSString -> IO ()
 processDump c s result = do
