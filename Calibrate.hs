@@ -31,9 +31,9 @@ instance JSONable MouseState where
                                 ("corner",toJSON c)]
     fromJSON d = do
       state <- d ~> "state"
-      case encodeJSON state of
-        "Free" -> Just Free
-        "Dragging" -> do
+      case state of
+        (Str "Free") -> Just Free
+        (Str "Dragging") -> do
                    corner <- d ~> "corner"
                    Dragging <$> fromJSON corner
         _ -> Nothing
@@ -56,8 +56,7 @@ data CalibState = CalibState {mouse ::MouseState,
 instance JSONable CalibState where
     toJSON calib = Dict [("mouse",toJSON $ mouse calib),
                          ("box",toJSON $ box calib)]
-    -- fromJSON d = CalibState <$> (d ~~> "mouse") <*> (d ~~> "box")
-    fromJSON d = CalibState <$> pure Free <*> (d ~~> "box")
+    fromJSON d = CalibState <$> (d ~~> "mouse") <*> (d ~~> "box")
 
 defaultCalibState :: CalibState
 defaultCalibState = CalibState Free $ BoxMap (0,0) (0,223) (397,223) (397,0)
