@@ -122,11 +122,17 @@ makeTableCell x = do
 makeScanRow :: Killer -> Scan -> IO Elem
 makeScanRow k sc@(Scan (x1,y1) (x2,y2)) = do
   row <- makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
-  buttonText <- newTextElem "Delete"
-  deleteButton <- with (newElem "button") [children [buttonText]]
+  deleteButton <- makeDeleteButton
   appendChild row deleteButton
   _ <- onEvent deleteButton Click $ const (k sc)
   return row
+
+makeDeleteButton :: IO Elem
+makeDeleteButton = do
+  icon <- newElem "span" `with` [attr "class" =: "glyphicon glyphicon-remove"]
+  button <- newElem "button" `with` [attr "class" =: "btn btn-danger",
+                                    children [icon]]
+  return button
 
 dropScan :: IO () -> IORef ScanState -> Scan -> IO ()
 dropScan action scanState s = do
