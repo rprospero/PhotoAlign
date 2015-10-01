@@ -23,12 +23,12 @@ instance JSONable String where
 
 instance JSONable a => JSONable [a] where
     toJSON = Arr . map toJSON
-    fromJSON (Arr x) = sequence . map fromJSON $ x
+    fromJSON (Arr x) = mapM fromJSON x
     fromJSON _ = Nothing
 
 instance JSONable Point where
     toJSON (x,y) = Arr . map toJSON $ [x,y]
-    fromJSON (Arr ps) = (,) <$> fromJSON (ps !! 0) <*> fromJSON (ps !! 1)
+    fromJSON (Arr ps) = (,) <$> fromJSON (head ps) <*> fromJSON (ps !! 1)
     fromJSON _ = Nothing
 
 (~~>) :: (JSONable a) => JSON -> JSString -> Maybe a

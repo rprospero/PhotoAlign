@@ -9,7 +9,7 @@ import Haste.DOM
 import Haste.JSON
 import Haste.Events
 import Haste.Graphics.Canvas
-import Control.Monad (forM,(>=>))
+import Control.Monad (forM,forM_,(>=>))
 
 import JSON
 
@@ -18,7 +18,7 @@ data Scan = Scan {start :: Point,
             deriving (Show, Eq)
 instance JSONable Scan where
     toJSON s = Arr . map toJSON $ [start s,stop s]
-    fromJSON (Arr ss) = Scan <$> fromJSON (ss !! 0) <*> fromJSON (ss !! 1)
+    fromJSON (Arr ss) = Scan <$> fromJSON (head ss) <*> fromJSON (ss !! 1)
     fromJSON _ = Nothing
 
 data MouseState = Free | Dragging
@@ -68,7 +68,7 @@ updateHead :: MouseData -> ScanState -> ScanState
 updateHead _ st@(ScanState Free _) = st
 updateHead _ st@(ScanState Dragging []) = st
 updateHead m (ScanState Dragging (s:ss)) =
-    ScanState Dragging $ (axisScan (start s) $ floatPair $ mouseCoords m):ss
+    ScanState Dragging $ axisScan (start s) (floatPair $ mouseCoords m):ss
 
 axisScan :: Point -> Point -> Scan
 axisScan p p2 = Scan p $ ending p p2
@@ -85,11 +85,11 @@ mouseDown action state m = do
   action
 
 startDrag :: Point -> ScanState -> ScanState
-startDrag p st = ScanState Dragging $ (Scan p p):scans st
+startDrag p st = ScanState Dragging $ Scan p p:scans st
 
 
 scanShape :: ScanState -> Picture ()
-scanShape st = lineWidth 1 . stroke $ forM (scans st) (\(Scan a b) -> line a b) >> return ()
+scanShape st = lineWidth 1 . stroke $ forM_ (scans st) (\(Scan a b) -> line a b)
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
@@ -116,9 +116,9 @@ makeTableHeader' x = do
 
 makeTableRow :: (Show a) => [a] -> IO Elem
 makeTableRow xs = do
-  texts <- sequence $ map makeTableCell xs
+  texts <- mapM makeTableCell xs
   let cell tx = with (newElem "td") [children [tx]]
-  cells <- sequence $ map cell texts
+  cells <- mapM cell texts
   with (newElem "tr") [children cells]
 
 makeTableCell :: Show a => a -> IO Elem
@@ -137,9 +137,8 @@ makeScanRow k sc@(Scan (x1,y1) (x2,y2)) = do
 makeDeleteButton :: IO Elem
 makeDeleteButton = do
   icon <- newElem "span" `with` [attr "class" =: "glyphicon glyphicon-remove"]
-  button <- newElem "button" `with` [attr "class" =: "btn btn-danger",
-                                    children [icon]]
-  return button
+  newElem "button" `with` [attr "class" =: "btn btn-danger",
+                           children [icon]]
 
 dropScan :: IO () -> IORef ScanState -> Scan -> IO ()
 dropScan action scanState s = do

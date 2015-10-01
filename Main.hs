@@ -7,7 +7,6 @@ import Haste.Foreign
 import Haste.Graphics.Canvas
 import Haste.JSON
 import Data.IORef
-import Data.String
 import Data.Monoid
 
 import Calibrate
@@ -24,13 +23,13 @@ image :: URL
 image = "IndianRoller2.jpg"
 
 getFilePath :: ElemID -> IO URL
-getFilePath = ffi $ Data.String.fromString "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
+getFilePath = ffi "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
 
 getFileName :: ElemID -> IO String
-getFileName = ffi $ Data.String.fromString "(function(x){return document.getElementById(x).value;})"
+getFileName = ffi "(function(x){return document.getElementById(x).value;})"
 
 readAsText :: JSString -> ElemID -> IO ()
-readAsText = ffi $ "function(name,x){var r = new FileReader;r.onload=function(q){Haste[name](q.target.result)};r.readAsText(document.getElementById(x).files[0]);}"
+readAsText = ffi "function(name,x){var r = new FileReader;r.onload=function(q){Haste[name](q.target.result)};r.readAsText(document.getElementById(x).files[0]);}"
 
 -- | Then you grab a canvas object...
 main :: IO ()
@@ -71,55 +70,55 @@ updateBitmap action background nameRef () = do
     action
 
 processDump :: IORef CalibState -> IORef ScanState -> JSString -> IO ()
-processDump c s result = do
+processDump c s result =
   case decodeJSON result of
-    Left _ -> print "Undecoded" >> print result
+    Left _ -> return ()
     Right json -> case fromJSON json of
                    Just d -> do
                            writeIORef c $ calib d
                            writeIORef s $ scandata d
-                   Nothing -> print "Unparsed" >> print result
+                   Nothing -> return ()
 
 updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> IO ()
-updatePage scanState state background = do
-  calib <- readIORef state
-  scan <- readIORef scanState
+updatePage scanState calibState background = do
+  c <- readIORef calibState
+  s <- readIORef scanState
 
   Just can1 <- getCanvasById "original"
   Just can2 <- getCanvasById "aligned"
   Just tbl <- elemById "scans"
 
-  let action = updatePage scanState state background
+  let action = updatePage scanState calibState background
 
-  populateTable (dropScan action scanState) scan tbl
+  populateTable (dropScan action scanState) s tbl
 
-  drawAligned scan calib background can2
-  drawCalibration calib background can1
+  drawAligned s c background can2
+  drawCalibration c background can1
 
-  fileSave "exportLink" $ toFile scan
-  fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump calib scan
+  fileSave "exportLink" $ toFile s
+  fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
-drawCalibration calib background can = do
+drawCalibration c background can = do
   rawBackground <- readIORef background
   render can $ do
     scale (0.1,0.1) $ draw rawBackground (0,0)
-    lineWidth 1 . stroke $ boxShape calib
+    lineWidth 1 . stroke $ boxShape c
 
 drawAligned :: ScanState -> CalibState -> IORef Bitmap -> Canvas -> IO ()
-drawAligned scan calib background can = do
+drawAligned s c background can = do
   rawBackground <- readIORef background
   render can $ do
-    alignImage (400,400) calib $ scale (0.1,0.1) $ draw rawBackground (0,0)
-    scanShape scan
+    alignImage (400,400) c $ scale (0.1,0.1) $ draw rawBackground (0,0)
+    scanShape s
   return ()
 
 fileSave :: ElemID -> String -> IO()
 fileSave e contents = do
-  Just elem <- elemById e
+  Just el <- elemById e
   encoded <- encodeURIComponent contents
   let uri = "data:text/plain;charset=utf-8," <> encoded
-  setAttr elem "href" uri
+  setAttr el "href" uri
 
 encodeURIComponent :: String -> IO String
-encodeURIComponent = ffi (Data.String.fromString "encodeURIComponent")
+encodeURIComponent = ffi "encodeURIComponent"

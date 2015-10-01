@@ -43,7 +43,7 @@ data BoxMap = BoxMap Point Point Point Point
 instance JSONable BoxMap where
     toJSON (BoxMap a b c d) = Arr . map toJSON $ [a,b,c,d]
     fromJSON (Arr ps) = let points = map fromJSON ps
-                        in BoxMap <$> (points !! 0)
+                        in BoxMap <$> head points
                                <*> (points !! 1)
                                <*> (points !! 2)
                                <*> (points !! 3)
