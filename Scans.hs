@@ -206,8 +206,8 @@ fileLineScan (Scan (x1, y1) (x2, y2) t) =
 toMM :: Double -> Double
 toMM x = (x*frameSize/imageSize)
     where
-      frameSize = 25 -- | The size of the frame in mm
-      imageSize = 400 -- | The size of the image in pixels
+      frameSize = 25 -- The size of the frame in mm
+      imageSize = 400 -- The size of the image in pixels
 
 -- | Number of seconds to sleep between runs in a scan
 sleep :: String

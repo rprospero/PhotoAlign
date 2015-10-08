@@ -73,12 +73,13 @@ updateRunfile s runfile = do
   modifyIORef' s (\x -> x{fileName=value})
 
 -- | Loads a new image file
-updateBitmap :: IO () -> IORef Bitmap -> IORef String -> () -> IO ()
-updateBitmap action -- ^ The generic page update to perform once the
-                    -- function has finished.
-             background -- ^ The IORef which stores the image
-             nameRef -- ^ The IORef which stores the name of the file
-             () = do
+updateBitmap :: IO ()  -- ^ The generic page update to perform once the
+             -> IORef Bitmap  -- ^ The IORef which stores the image
+                             -- function has finished.
+             -> IORef String  -- ^ The IORef which stores the name of the file
+             -> ()
+             -> IO ()
+updateBitmap action background nameRef () = do
     imagePath <- getFilePath "filePath"
     rawBackground <- loadBitmap imagePath
     writeIORef background rawBackground
@@ -92,10 +93,11 @@ updateBitmap action -- ^ The generic page update to perform once the
     action
 
 -- | Updates the global state to the values from the JSON file
-processDump :: IORef CalibState -> IORef ScanState -> JSString -> IO ()
-processDump c -- ^ The global state of the calibration
-            s -- ^ The global state of the scans
-            result = -- ^ The text of the JSON file
+processDump :: IORef CalibState -- ^ The global state of the calibration
+              -> IORef ScanState -- ^ The global state of the scans
+              -> JSString -- ^ The text of the JSON file
+              -> IO ()
+processDump c s result =
   case decodeJSON result of
     Left _ -> return ()
     Right json -> case fromJSON json of
