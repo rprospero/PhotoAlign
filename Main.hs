@@ -112,7 +112,7 @@ drawCalibration c background can = do
   rawBackground <- readIORef background
   render can $ do
     scale (0.1,0.1) $ draw rawBackground (0,0)
-    lineWidth 1 . stroke $ boxShape c
+    lineWidth 1 . color (RGB 255 0 255) . stroke $ boxShape c
 
 drawAligned :: ScanState -> CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawAligned s c background can = do

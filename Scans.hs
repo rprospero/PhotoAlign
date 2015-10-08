@@ -101,7 +101,7 @@ startDrag p st = ScanState Dragging $ Scan p p "":scans st
 
 
 scanShape :: ScanState -> Picture ()
-scanShape st = lineWidth 1 . stroke $ forM_ (scans st) (\(Scan a b _) -> line a b)
+scanShape st = lineWidth 1 . color (RGB 255 0 255) . stroke $ forM_ (scans st) (\(Scan a b _) -> line a b)
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
