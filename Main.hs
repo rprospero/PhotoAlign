@@ -49,6 +49,7 @@ main = do
   Just filePath <- elemById "filePath"
   Just loadPath <- elemById "loadPath"
   Just runfile <- elemById "runfile"
+  Just rots <- elemById "rotations"
   calibState <- initCalibState
   scanState <- initScanState
   rawBackground <- loadBitmap image
@@ -67,6 +68,7 @@ main = do
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
   _ <- onEvent runfile Change $ const $ updateRunfile scanState runfile
+  _ <- onEvent rots Change $ const $ updateRotations scanState rots
   action
 
 -- | Update the global state of the name of the runfile with the value
@@ -76,6 +78,11 @@ updateRunfile s runfile = do
   value <- getProp runfile "value"
   print value
   modifyIORef' s (\x -> x{fileName=value})
+
+updateRotations :: IORef ScanState -> Elem -> IO ()
+updateRotations s rots = do
+  value <- getProp rots "value"
+  modifyIORef' s (\x -> x{rotations=map read . words$value})
 
 -- | Loads a new image file
 updateBitmap :: IO ()  -- ^ The generic page update to perform once the

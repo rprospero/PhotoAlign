@@ -2,7 +2,7 @@
 
 
 -- | This module handles all of the scans requested by the user
-module Scans (attachScanEvents, initScanState, scanShape, ScanState(fileName), scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
+module Scans (attachScanEvents, initScanState, scanShape, ScanState(fileName,rotations), scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
 import Data.List (delete,intercalate)
@@ -223,15 +223,18 @@ fixScanState scan f s =
     let ss = scans s
     in s{scans=when (==scan) f ss}
 
+newline :: String
+newline = "\r\n"
+
 -- | Turns a ScanState into a script macro for SPEC
 toFile :: ScanState -> String
 toFile s = "ccdnewfile " ++
            fileName s ++
-           "\r\n" ++
-           concat (map (scanRot s) (rotations s))
+           newline ++
+           intercalate (newline ++ newline) (map (scanRot s) (rotations s))
 
 scanRot :: ScanState -> Double -> String
-scanRot s angle = "umv sar " ++ show angle ++ "\r\n" ++ (intercalate "\r\n" . map fileLineScan . reverse . scans $ s)
+scanRot s angle = "umv sar " ++ show angle ++ newline  ++ (intercalate newline . map fileLineScan . reverse . scans $ s)
 
 data ScanDir = Horizontal | Vertical
 
@@ -272,7 +275,7 @@ scanCommand' m1 d1 m2 (begin,end) t =
                        sleep, t, ndark, "1"]
         moveString = "umv " ++ m1 ++ " " ++ show d1
     in
-      moveString ++ "\r\n" ++ scanString
+      moveString ++ newline ++ scanString
 
 -- | Determines whether the user has provided enough information to write the script file.
 scansReady :: ScanState -> Bool
