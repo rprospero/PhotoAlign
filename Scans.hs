@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Scans (attachScanEvents, initScanState, scanShape, ScanState, scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
+module Scans (attachScanEvents, initScanState, scanShape, ScanState(fileName), scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
 import Data.List (delete,intercalate)
@@ -44,14 +44,15 @@ instance JSONable MouseState where
     fromJSON _ = Nothing
 
 data ScanState = ScanState {mouse :: MouseState,
-                            scans :: [Scan]}
+                            scans :: [Scan],
+                            fileName :: String}
                  deriving (Eq,Show)
 instance JSONable ScanState where
-    toJSON s = Dict . zip ["mouse","scans"] $ [toJSON $ mouse s,toJSON $ scans s]
-    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans")
+    toJSON s = Dict . zip ["mouse","scans","fileName"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s]
+    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans") <*> (d ~> "fileName" >>= fromJSONStr)
 
 defaultScanState :: ScanState
-defaultScanState = ScanState Free []
+defaultScanState = ScanState Free [] ""
 
 initScanState :: IO (IORef ScanState)
 initScanState = newIORef defaultScanState
@@ -77,10 +78,10 @@ mouseMove action state m = do
   action
 
 updateHead :: MouseData -> ScanState -> ScanState
-updateHead _ st@(ScanState Free _) = st
-updateHead _ st@(ScanState Dragging []) = st
-updateHead m (ScanState Dragging (s:ss)) =
-    ScanState Dragging $ axisScan (start s) (floatPair $ mouseCoords m):ss
+updateHead _ st@(ScanState Free _ _) = st
+updateHead _ st@(ScanState Dragging [] _) = st
+updateHead m st@(ScanState Dragging (s:ss) _) =
+    st{scans= axisScan (start s) (floatPair $ mouseCoords m):ss}
 
 axisScan :: Point -> Point -> Scan
 axisScan p p2 = Scan p (ending p p2) ""
@@ -97,7 +98,7 @@ mouseDown action state m = do
   action
 
 startDrag :: Point -> ScanState -> ScanState
-startDrag p st = ScanState Dragging $ Scan p p "":scans st
+startDrag p st = st{mouse=Dragging,scans=Scan p p "":scans st}
 
 
 scanShape :: ScanState -> Picture ()
@@ -188,7 +189,10 @@ fixScanState scan f s =
     in s{scans=when (==scan) f ss}
 
 toFile :: ScanState -> String
-toFile = intercalate "\r\n" . map fileLineScan . reverse . scans
+toFile s = "ccdnewfile " ++
+           fileName s ++
+           "\r\n" ++
+           (intercalate "\r\n" . map fileLineScan . reverse . scans $ s)
 
 data ScanDir = Horizontal | Vertical
 
@@ -233,12 +237,12 @@ scanCommand' m1 d1 m2 (begin,end) t =
 
 
 scansReady :: ScanState -> Bool
-scansReady s =
-    let ss = scans s
-    in case ss of
-         [] -> False
-         xs -> all (validTitle) . map title $ xs
+scansReady s
+    | scans s == [] = False
+    | (any (invalidTitle) . map title . scans $ s) = False
+    | fileName s == "" = False
+    | otherwise = True
 
-validTitle :: String -> Bool
-validTitle "" = False
-validTitle t = all (/= ' ') t
+invalidTitle :: String -> Bool
+invalidTitle "" = True
+invalidTitle t = any (== ' ') t

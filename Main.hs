@@ -36,6 +36,7 @@ main :: IO ()
 main = do
   Just filePath <- elemById "filePath"
   Just loadPath <- elemById "loadPath"
+  Just runfile <- elemById "runfile"
   calibState <- initCalibState
   scanState <- initScanState
   rawBackground <- loadBitmap image
@@ -53,7 +54,15 @@ main = do
 
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
+  _ <- onEvent runfile Change $ const $ updateRunfile scanState runfile
   action
+
+updateRunfile :: IORef ScanState -> Elem -> IO ()
+updateRunfile s runfile = do
+  value <- getProp runfile "value"
+  print value
+  modifyIORef' s (\x -> x{fileName=value})
+
 
 updateBitmap :: IO () -> IORef Bitmap -> IORef String -> () -> IO ()
 updateBitmap action background nameRef () = do
@@ -87,6 +96,9 @@ updatePage scanState calibState background = do
   Just can1 <- getCanvasById "original"
   Just can2 <- getCanvasById "aligned"
   Just tbl <- elemById "scans"
+  Just runFile <- elemById "runfile"
+
+  setProp runFile "value" $ fileName s
 
   toggleExport s
 
