@@ -52,15 +52,18 @@ data ScanState = ScanState {mouse :: MouseState, -- ^ whether a new
                                                 -- being created.
                             scans :: [Scan], -- ^ The scans that the
                                             -- user has requested.
-                            fileName :: String} -- ^ The run name for
+                            fileName :: String, -- ^ The run name for
                                                -- the scans
+                            rotations :: [Double]} -- ^ The rotation
+                                                  -- angles that we
+                                                  -- wish to measure
                  deriving (Eq,Show)
 instance JSONable ScanState where
-    toJSON s = Dict . zip ["mouse","scans","fileName"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s]
-    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans") <*> (d ~> "fileName" >>= fromJSONStr)
+    toJSON s = Dict . zip ["mouse","scans","fileName","rotations"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s,toJSON $ rotations s]
+    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans") <*> (d ~> "fileName" >>= fromJSONStr)  <*> ((d ~> "rotations") >>= fromJSON)
 
 defaultScanState :: ScanState
-defaultScanState = ScanState Free [] ""
+defaultScanState = ScanState Free [] "" [15]
 
 -- | Creates a reference to a set of scans
 initScanState :: IO (IORef ScanState)
@@ -92,10 +95,14 @@ mouseMove action state m = do
   action
 
 updateHead :: MouseData -> ScanState -> ScanState
-updateHead _ st@(ScanState Free _ _) = st
-updateHead _ st@(ScanState Dragging [] _) = st
-updateHead m st@(ScanState Dragging (s:ss) _) =
-    st{scans= axisScan (start s) (floatPair $ mouseCoords m):ss}
+updateHead m st
+    | mouse st == Free = st
+    | scans st == [] = st
+    | otherwise =
+        let
+          s:ss = scans st
+        in
+          st{scans= axisScan (start s) (floatPair $ mouseCoords m):ss}
 
 axisScan :: Point -> Point -> Scan
 axisScan p p2 = Scan p (ending p p2) ""
@@ -221,7 +228,10 @@ toFile :: ScanState -> String
 toFile s = "ccdnewfile " ++
            fileName s ++
            "\r\n" ++
-           (intercalate "\r\n" . map fileLineScan . reverse . scans $ s)
+           concat (map (scanRot s) (rotations s))
+
+scanRot :: ScanState -> Double -> String
+scanRot s angle = "umv sar " ++ show angle ++ "\r\n" ++ (intercalate "\r\n" . map fileLineScan . reverse . scans $ s)
 
 data ScanDir = Horizontal | Vertical
 
@@ -270,6 +280,7 @@ scansReady s
     | scans s == [] = False
     | (any (invalidTitle) . map title . scans $ s) = False
     | fileName s == "" = False
+    | rotations s == [] = False
     | otherwise = True
 
 invalidTitle :: String -> Bool
