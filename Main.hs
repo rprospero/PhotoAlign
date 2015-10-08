@@ -19,19 +19,26 @@ instance JSONable StateDump where
     toJSON s = Dict . zip ["calib","scans"] $ [toJSON $ calib s, toJSON $ scandata s]
     fromJSON d = StateDump <$> (d ~~> "calib") <*> (d ~~> "scans")
 
+-- | Default image file
 image :: URL
 image = "IndianRoller2.jpg"
 
+-- | Given a file selection element, returns a URL to the selected file
 getFilePath :: ElemID -> IO URL
 getFilePath = ffi "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
 
+-- | Given a file selection element, get the name of the returned file
 getFileName :: ElemID -> IO String
 getFileName = ffi "(function(x){return document.getElementById(x).value;})"
 
+-- | Given a file element, reads the file into a text string.  Because
+-- of the Javascript callback system, this string must then be passed
+-- to an function exported by Haste under the name given in the
+-- JSString.
 readAsText :: JSString -> ElemID -> IO ()
 readAsText = ffi "function(name,x){var r = new FileReader;r.onload=function(q){Haste[name](q.target.result)};r.readAsText(document.getElementById(x).files[0]);}"
 
--- | Then you grab a canvas object...
+-- | The actual Photoalign program
 main :: IO ()
 main = do
   Just filePath <- elemById "filePath"
@@ -57,15 +64,21 @@ main = do
   _ <- onEvent runfile Change $ const $ updateRunfile scanState runfile
   action
 
+-- | Update the global state of the name of the runfile with the value
+-- of a form element.
 updateRunfile :: IORef ScanState -> Elem -> IO ()
 updateRunfile s runfile = do
   value <- getProp runfile "value"
   print value
   modifyIORef' s (\x -> x{fileName=value})
 
-
+-- | Loads a new image file
 updateBitmap :: IO () -> IORef Bitmap -> IORef String -> () -> IO ()
-updateBitmap action background nameRef () = do
+updateBitmap action -- ^ The generic page update to perform once the
+                    -- function has finished.
+             background -- ^ The IORef which stores the image
+             nameRef -- ^ The IORef which stores the name of the file
+             () = do
     imagePath <- getFilePath "filePath"
     rawBackground <- loadBitmap imagePath
     writeIORef background rawBackground
@@ -78,8 +91,11 @@ updateBitmap action background nameRef () = do
     setAttr exportLink "download" $ imageName <> ".txt"
     action
 
+-- | Updates the global state to the values from the JSON file
 processDump :: IORef CalibState -> IORef ScanState -> JSString -> IO ()
-processDump c s result =
+processDump c -- ^ The global state of the calibration
+            s -- ^ The global state of the scans
+            result = -- ^ The text of the JSON file
   case decodeJSON result of
     Left _ -> return ()
     Right json -> case fromJSON json of
