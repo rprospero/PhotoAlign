@@ -83,7 +83,7 @@ updateHead m (ScanState Dragging (s:ss)) =
     ScanState Dragging $ axisScan (start s) (floatPair $ mouseCoords m):ss
 
 axisScan :: Point -> Point -> Scan
-axisScan p p2 = Scan p (ending p p2) "title"
+axisScan p p2 = Scan p (ending p p2) ""
     where
       ending (x1,y1) (x2,y2) =
           if abs (y2 - y1) > abs (x2 - x1)
@@ -97,7 +97,7 @@ mouseDown action state m = do
   action
 
 startDrag :: Point -> ScanState -> ScanState
-startDrag p st = ScanState Dragging $ Scan p p "Dragging":scans st
+startDrag p st = ScanState Dragging $ Scan p p "":scans st
 
 
 scanShape :: ScanState -> Picture ()
