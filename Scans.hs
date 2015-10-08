@@ -178,6 +178,11 @@ scanCommand Horizontal y p title = scanCommand' "sav" y "sah" p title
 
 scanCommand' :: String -> Double -> String -> (Double, Double) -> String -> String
 scanCommand' m1 d1 m2 (start,stop) title =
-    intercalate " " ["ccdtrans", m2, show start, show stop,
-                     show $ floor (abs (stop-start) / step) ,
-                     sleep, title, ndark, "1"]
+    let scanString =  intercalate " "
+                      ["ccdtrans", m2, show start,
+                       show stop,
+                       show $ floor (abs (stop-start) / step) ,
+                       sleep, title, ndark, "1"]
+        moveString = "umv " ++ m1 ++ " " ++ show d1
+    in
+      moveString ++ "\r\n" ++ scanString
