@@ -142,7 +142,7 @@ makeTableCell x = do
 
 makeScanRow :: Changer -> Killer -> Scan -> IO Elem
 makeScanRow c k sc@(Scan (x1,y1) (x2,y2) t) = do
-  row <- makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
+  row <- makeTableRow . map ((/900) . (*25)) $ [x1, y1, x2, y2]
   titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
   appendChild row =<< inCell titleLabel
