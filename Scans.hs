@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan,updateTitle,toFile,MouseState) where
+module Scans (attachScanEvents, initScanState, scanShape, ScanState, scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
 import Data.List (delete,intercalate)
@@ -207,7 +207,7 @@ toMM x = (x*frameSize/imageSize)
 
 -- | Number of seconds to sleep between runs in a scan
 sleep :: String
-sleep = "1"
+sleep = "0"
 
 -- | Number of dark runs to perform on each scan.
 ndark :: String
@@ -230,3 +230,15 @@ scanCommand' m1 d1 m2 (begin,end) t =
         moveString = "umv " ++ m1 ++ " " ++ show d1
     in
       moveString ++ "\r\n" ++ scanString
+
+
+scansReady :: ScanState -> Bool
+scansReady s =
+    let ss = scans s
+    in case ss of
+         [] -> False
+         xs -> all (validTitle) . map title $ xs
+
+validTitle :: String -> Bool
+validTitle "" = False
+validTitle t = all (/= ' ') t

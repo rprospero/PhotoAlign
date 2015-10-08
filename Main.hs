@@ -88,6 +88,8 @@ updatePage scanState calibState background = do
   Just can2 <- getCanvasById "aligned"
   Just tbl <- elemById "scans"
 
+  toggleExport s
+
   let action = updatePage scanState calibState background
 
   populateTable (updateTitle action scanState) (dropScan action scanState) s tbl
@@ -97,6 +99,13 @@ updatePage scanState calibState background = do
 
   fileSave "exportLink" $ toFile s
   fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
+
+toggleExport :: ScanState -> IO ()
+toggleExport s = do
+  Just b <- elemById "exportLink"
+  case scansReady s of
+    True -> setAttr b "class" "btn btn-primary"
+    False -> setAttr b "class" "btn btn-primary disabled"
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawCalibration c background can = do
