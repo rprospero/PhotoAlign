@@ -145,8 +145,39 @@ dropScan action scanState s = do
   modifyIORef' scanState (\x -> x{scans = delete s $scans x})
   action
 
-toFile :: ScanState -> String
-toFile = intercalate "\n" . map fileLineScan . reverse . scans
+toFile :: String -> ScanState -> String
+toFile title = intercalate "\r\n" . map (fileLineScan title) . reverse . scans
 
-fileLineScan :: Scan -> String
-fileLineScan (Scan (x1, y1) (x2, y2)) = intercalate "\t" . map show $ map ((* 25) . (/ 400)) [x1,y1,x2,y2]
+data ScanDir = Horizontal | Vertical
+
+fileLineScan :: String -> Scan -> String
+fileLineScan title (Scan (x1, y1) (x2, y2)) =
+    if x1 == x2
+    then scanCommand Vertical (toMM x1) (toMM y1,toMM y2) title
+    else scanCommand Horizontal (toMM y1) (toMM x1,toMM x2) title
+
+-- | Convert pixel coordinates to real ones
+toMM :: Double -> Double
+toMM x = (x*frameSize/imageSize)
+    where
+      frameSize = 25 -- | The size of the frame in mm
+      imageSize = 400 -- | The size of the image in pixels
+
+-- | Number of seconds to sleep between runs in a scan
+sleep = show 1
+
+-- | Number of dark runs to perform on each scan.
+ndark = show 1
+
+-- | Size of step between measurements
+step = 0.1
+
+scanCommand :: ScanDir -> Double -> (Double,Double) -> String -> String
+scanCommand Vertical x p title = scanCommand' "sah" x "sav" p title
+scanCommand Horizontal y p title = scanCommand' "sav" y "sah" p title
+
+scanCommand' :: String -> Double -> String -> (Double, Double) -> String -> String
+scanCommand' m1 d1 m2 (start,stop) title =
+    intercalate " " ["ccdtrans", m2, show start, show stop,
+                     show $ floor (abs (stop-start) / step) ,
+                     sleep, title, ndark, "1"]

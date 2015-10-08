@@ -95,7 +95,7 @@ updatePage scanState calibState background = do
   drawAligned s c background can2
   drawCalibration c background can1
 
-  fileSave "exportLink" $ toFile s
+  fileSave "exportLink" $ toFile "title" s
   fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
