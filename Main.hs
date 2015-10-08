@@ -90,7 +90,7 @@ updatePage scanState calibState background = do
 
   let action = updatePage scanState calibState background
 
-  populateTable (dropScan action scanState) s tbl
+  populateTable (updateTitle action scanState) (dropScan action scanState) s tbl
 
   drawAligned s c background can2
   drawCalibration c background can1

@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan,toFile,MouseState) where
+module Scans (attachScanEvents, initScanState, scanShape, ScanState,populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
 import Data.List (delete,intercalate)
@@ -108,12 +108,14 @@ floatPair (x,y) = (fromIntegral x, fromIntegral y)
 
 type Killer = Scan -> IO ()
 
-populateTable :: Killer -> ScanState -> Elem -> IO ()
-populateTable k st e = do
+type Changer = Elem -> Scan -> IO ()
+
+populateTable :: Changer -> Killer -> ScanState -> Elem -> IO ()
+populateTable c k st e = do
   clearChildren e
   header <- makeTableHeader
   appendChild e header
-  _ <- forM (reverse $ scans st) (makeScanRow k >=> appendChild e)
+  _ <- forM (reverse $ scans st) (makeScanRow c k >=> appendChild e)
   return ()
 
 makeTableHeader :: IO Elem
@@ -138,21 +140,24 @@ makeTableCell x = do
   txt <- newTextElem $ show x
   with (newElem "td") [children [txt]]
 
-makeScanRow :: Killer -> Scan -> IO Elem
-makeScanRow k sc@(Scan (x1,y1) (x2,y2) t) = do
+makeScanRow :: Changer -> Killer -> Scan -> IO Elem
+makeScanRow c k sc@(Scan (x1,y1) (x2,y2) t) = do
   row <- makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
   titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
-  appendChild row titleLabel
+  appendChild row =<< inCell titleLabel
   appendChild row deleteButton
   _ <- onEvent deleteButton Click $ const (k sc)
+  _ <- onEvent titleLabel Change $ const (c titleLabel sc)
   return row
+
+inCell :: Elem -> IO Elem
+inCell t = newElem "td" `with` [children [t]]
 
 makeTitleLabel :: String -> IO Elem
 makeTitleLabel s = do
-  textInput <- newElem "input" `with` [attr "type" =: "text",
-                                      attr "value" =: s]
-  newElem "td" `with` [children [textInput]]
+  newElem "input" `with` [attr "type" =: "text",
+                          attr "value" =: s]
 
 makeDeleteButton :: IO Elem
 makeDeleteButton = do
@@ -160,10 +165,27 @@ makeDeleteButton = do
   newElem "button" `with` [attr "class" =: "btn btn-danger",
                            children [icon]]
 
-dropScan :: IO () -> IORef ScanState -> Scan -> IO ()
+dropScan :: IO () -> IORef ScanState -> Killer
 dropScan action scanState s = do
   modifyIORef' scanState (\x -> x{scans = delete s $scans x})
   action
+
+updateTitle :: IO () -> IORef ScanState -> Changer
+updateTitle action scanState label scan = do
+  l <- getProp label "value"
+  modifyIORef' scanState (fixScanState scan (\x -> x{title=l}))
+  action
+
+when :: (a -> Bool) -> (a->a) -> [a] -> [a]
+when _ _ [] = []
+when test f (x:xs) = if test x
+                     then f x:when test f xs
+                     else x:when test f xs
+
+fixScanState :: Scan -> (Scan->Scan) -> ScanState -> ScanState
+fixScanState scan f s =
+    let ss = scans s
+    in s{scans=when (==scan) f ss}
 
 toFile :: ScanState -> String
 toFile = intercalate "\r\n" . map fileLineScan . reverse . scans
