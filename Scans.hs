@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+
+-- | This module handles all of the scans requested by the user
 module Scans (attachScanEvents, initScanState, scanShape, ScanState(fileName), scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
@@ -33,6 +35,7 @@ getJArr d k = case d ~> k of
                 Just (Arr x) -> Just x
                 Just _ -> Nothing
 
+-- | Whether the user is currently performing a drag or leaving the mouse free
 data MouseState = Free | Dragging
                   deriving (Show,Eq)
 instance JSONable MouseState where
@@ -43,9 +46,14 @@ instance JSONable MouseState where
                          _ -> Nothing
     fromJSON _ = Nothing
 
-data ScanState = ScanState {mouse :: MouseState,
-                            scans :: [Scan],
-                            fileName :: String}
+-- | The complete state of the user's scanning selections
+data ScanState = ScanState {mouse :: MouseState, -- ^ whether a new
+                                                -- scan is currently
+                                                -- being created.
+                            scans :: [Scan], -- ^ The scans that the
+                                            -- user has requested.
+                            fileName :: String} -- ^ The run name for
+                                               -- the scans
                  deriving (Eq,Show)
 instance JSONable ScanState where
     toJSON s = Dict . zip ["mouse","scans","fileName"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s]
@@ -54,13 +62,19 @@ instance JSONable ScanState where
 defaultScanState :: ScanState
 defaultScanState = ScanState Free [] ""
 
+-- | Creates a reference to a set of scans
 initScanState :: IO (IORef ScanState)
 initScanState = newIORef defaultScanState
 
 makeFree :: ScanState -> ScanState
 makeFree st = st{mouse=Free}
 
-attachScanEvents :: IORef ScanState -> Canvas -> IO () -> IO ()
+-- | Registers actions on the scan canvas
+attachScanEvents :: IORef ScanState -- ^ A reference to the global
+                                   -- state of the scan
+                 -> Canvas -- ^ The canvas being registered
+                 -> IO () -- ^ A generic update to perform after any event
+                 -> IO ()
 attachScanEvents scanState can action = do
   _ <- onEvent can MouseDown $ mouseDown action scanState
   _ <- onEvent can MouseUp $ mouseUp action scanState
@@ -100,7 +114,7 @@ mouseDown action state m = do
 startDrag :: Point -> ScanState -> ScanState
 startDrag p st = st{mouse=Dragging,scans=Scan p p "":scans st}
 
-
+-- | Returns a picture with the scans coloured Magenta
 scanShape :: ScanState -> Picture ()
 scanShape st = lineWidth 1 . color (RGB 255 0 255) . stroke $ forM_ (scans st) (\(Scan a b _) -> line a b)
 
@@ -111,7 +125,15 @@ type Killer = Scan -> IO ()
 
 type Changer = Elem -> Scan -> IO ()
 
-populateTable :: Changer -> Killer -> ScanState -> Elem -> IO ()
+-- | Add a table to the HTML document which contains the scans
+populateTable :: Changer -- ^ An action which updates the a scan title
+                        -- in the global state with the value in an
+                        -- element
+              -> Killer -- ^ An action which removes a scan from the
+                       -- global state
+              -> ScanState -- ^ The current state of the scan
+              -> Elem -- ^ where to place the table
+              -> IO ()
 populateTable c k st e = do
   clearChildren e
   header <- makeTableHeader
@@ -166,11 +188,17 @@ makeDeleteButton = do
   newElem "button" `with` [attr "class" =: "btn btn-danger",
                            children [icon]]
 
+-- | Given a generic continuation action and a reference to the global
+-- scan state, creates a function which will remove a given scan from
+-- the state and perform the update continuation.
 dropScan :: IO () -> IORef ScanState -> Killer
 dropScan action scanState s = do
   modifyIORef' scanState (\x -> x{scans = delete s $scans x})
   action
 
+-- | Given a generic continuation action and a reference to the global
+-- scan state, creates a function which will update any chosen scan
+-- with the value of a form element
 updateTitle :: IO () -> IORef ScanState -> Changer
 updateTitle action scanState label scan = do
   l <- getProp label "value"
@@ -188,6 +216,7 @@ fixScanState scan f s =
     let ss = scans s
     in s{scans=when (==scan) f ss}
 
+-- | Turns a ScanState into a script macro for SPEC
 toFile :: ScanState -> String
 toFile s = "ccdnewfile " ++
            fileName s ++
@@ -235,7 +264,7 @@ scanCommand' m1 d1 m2 (begin,end) t =
     in
       moveString ++ "\r\n" ++ scanString
 
-
+-- | Determines whether the user has provided enough information to write the script file.
 scansReady :: ScanState -> Bool
 scansReady s
     | scans s == [] = False

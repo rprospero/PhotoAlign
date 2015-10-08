@@ -1,5 +1,9 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | This module covers the calibration of a frame image.  Four
+-- corners of a 25mm square are selected to create a calibration to
+-- focus solely on the contents of that square.
+
 module Calibrate (initCalibState, attachEvents, boxShape, CalibState, getAngle,getScale,alignImage) where
 
 import Data.IORef
@@ -49,7 +53,7 @@ instance JSONable BoxMap where
                                <*> (points !! 3)
     fromJSON _ = Nothing
 
-
+-- | A structure to handle the complete state of the calibration system
 data CalibState = CalibState {mouse ::MouseState,
                               box :: BoxMap}
                   deriving (Eq,Show)
@@ -61,6 +65,7 @@ instance JSONable CalibState where
 defaultCalibState :: CalibState
 defaultCalibState = CalibState Free $ BoxMap (0,0) (0,669) (1191,669) (1191,0)
 
+-- | Create a refrence to a calibration state
 initCalibState :: IO (IORef CalibState)
 initCalibState = newIORef defaultCalibState
 
@@ -83,7 +88,11 @@ startDrag p (CalibState _ bx@(BoxMap a b c d)) = CalibState (Dragging corner) bx
                      Just 3 -> NE
                      _ -> SE -- Shouldn't happen
 
-attachEvents :: IORef CalibState -> Canvas -> IO () -> IO ()
+-- | Attach the proper drawing events to the calibration canvas
+attachEvents :: IORef CalibState -- ^ A reference to the global state of the calibration
+             -> Canvas -- ^ The svg element where the events are being handled
+             -> IO () -- ^ A generic update action to perform after any event
+             -> IO ()
 attachEvents calibState can action = do
   _ <- onEvent can MouseDown $ mouseDown action calibState
   _ <- onEvent can MouseUp $ mouseUp action calibState
@@ -124,12 +133,14 @@ mouseMove' stop (CalibState ms@(Dragging NW) (BoxMap _ b c d)) =
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
 
-
+-- | Draws a shape that corresponds to the corners of the current
+-- calibration
 boxShape :: CalibState -> Shape ()
 boxShape state =
     let (BoxMap a b c d) = box state
     in path [a, b, c, d, a]
 
+-- | Returns the image rotation calculated by the calibration
 getAngle :: CalibState -> Double
 getAngle = getAngle' . box
 
@@ -152,6 +163,9 @@ shoelace (xa, ya) (xb, yb) (xc, yc) =
 boxArea :: BoxMap -> Double
 boxArea (BoxMap a b c d) = shoelace a d c + shoelace d c b
 
+-- | Returns the area ratio between the rectangle given by the width
+-- and height in the point and the area enclosed by the calibration
+-- corners.
 getScale :: Point -> CalibState -> Double
 getScale (width,height) state = width*height/boxArea (box state)
 
@@ -166,7 +180,12 @@ getCenter' (BoxMap (xa, ya) (xb, yb) (xc, yc) (xd, yd)) =
 (><) :: (a -> b) -> (a,a) -> (b,b)
 f >< (a,b) = (f a, f b)
 
-alignImage :: Point -> CalibState -> Picture () -> Picture ()
+-- | Adjusts a picture so that the area chosen by the calibration
+-- is rotated and expanded into the whole image
+alignImage :: Point -- ^ The width and height of the target canvas
+           -> CalibState -- ^ The calibration being used for alignment
+           -> Picture () -- ^ The image to align
+           -> Picture ()
 alignImage size st = do
   let angle = getAngle st
       scl = getScale size st

@@ -1,5 +1,10 @@
 {-# LANGUAGE OverloadedStrings #-}
 
+-- | A program for aligning mounted samples and generating scripts for
+-- an x-ray instrument
+
+module Main (main) where
+
 import Haste
 import Haste.DOM
 import Haste.Events
