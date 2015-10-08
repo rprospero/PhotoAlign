@@ -9,7 +9,7 @@ import Haste.DOM
 import Haste.JSON
 import Haste.Events
 import Haste.Graphics.Canvas
-import Control.Monad (forM,forM_,(>=>),liftM)
+import Control.Monad (forM,forM_,(>=>))
 
 import JSON
 
@@ -23,6 +23,7 @@ instance JSONable Scan where
     fromJSON d@(Dict _) = Scan <$> (getJArr d "points" >>= (fromJSON . head))<*>((getJArr d "points") >>= (fromJSON . (!! 1))) <*> ((d ~> "title") >>= fromJSONStr)
     fromJSON _ = Nothing
 
+fromJSONStr :: JSON -> Maybe String
 fromJSONStr (Str x) = Just (toString x)
 fromJSONStr _ = Nothing
 
@@ -170,10 +171,10 @@ toFile = intercalate "\r\n" . map fileLineScan . reverse . scans
 data ScanDir = Horizontal | Vertical
 
 fileLineScan :: Scan -> String
-fileLineScan (Scan (x1, y1) (x2, y2) title) =
+fileLineScan (Scan (x1, y1) (x2, y2) t) =
     if x1 == x2
-    then scanCommand Vertical (toMM x1) (toMM y1,toMM y2) title
-    else scanCommand Horizontal (toMM y1) (toMM x1,toMM x2) title
+    then scanCommand Vertical (toMM x1) (toMM y1,toMM y2) t
+    else scanCommand Horizontal (toMM y1) (toMM x1,toMM x2) t
 
 -- | Convert pixel coordinates to real ones
 toMM :: Double -> Double
@@ -183,25 +184,27 @@ toMM x = (x*frameSize/imageSize)
       imageSize = 400 -- | The size of the image in pixels
 
 -- | Number of seconds to sleep between runs in a scan
-sleep = show 1
+sleep :: String
+sleep = "1"
 
 -- | Number of dark runs to perform on each scan.
-ndark = show 1
+ndark :: String
+ndark = "1"
 
 -- | Size of step between measurements
+step :: Double
 step = 0.1
 
 scanCommand :: ScanDir -> Double -> (Double,Double) -> String -> String
-scanCommand Vertical x p title = scanCommand' "sah" x "sav" p title
-scanCommand Horizontal y p title = scanCommand' "sav" y "sah" p title
+scanCommand Vertical x p t = scanCommand' "sah" x "sav" p t
+scanCommand Horizontal y p t = scanCommand' "sav" y "sah" p t
 
 scanCommand' :: String -> Double -> String -> (Double, Double) -> String -> String
-scanCommand' m1 d1 m2 (start,stop) title =
+scanCommand' m1 d1 m2 (begin,end) t =
     let scanString =  intercalate " "
-                      ["ccdtrans", m2, show start,
-                       show stop,
-                       show $ floor (abs (stop-start) / step) ,
-                       sleep, title, ndark, "1"]
+                      ["ccdtrans", m2, show begin, show end,
+                       show $ (floor (abs (end-begin) / step) :: Int),
+                       sleep, t, ndark, "1"]
         moveString = "umv " ++ m1 ++ " " ++ show d1
     in
       moveString ++ "\r\n" ++ scanString
