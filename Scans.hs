@@ -117,7 +117,7 @@ populateTable k st e = do
 
 makeTableHeader :: IO Elem
 makeTableHeader = do
-  hs <- mapM makeTableHeader' ["x1","y1","x2","y2","Delete"]
+  hs <- mapM makeTableHeader' ["x1","y1","x2","y2","title","Delete"]
   newElem "tr" `with` [children hs]
 
 makeTableHeader' :: String -> IO Elem
@@ -140,10 +140,18 @@ makeTableCell x = do
 makeScanRow :: Killer -> Scan -> IO Elem
 makeScanRow k sc@(Scan (x1,y1) (x2,y2) t) = do
   row <- makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
+  titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
+  appendChild row titleLabel
   appendChild row deleteButton
   _ <- onEvent deleteButton Click $ const (k sc)
   return row
+
+makeTitleLabel :: String -> IO Elem
+makeTitleLabel s = do
+  textInput <- newElem "input" `with` [attr "type" =: "text",
+                                      attr "value" =: s]
+  newElem "td" `with` [children [textInput]]
 
 makeDeleteButton :: IO Elem
 makeDeleteButton = do
