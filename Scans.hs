@@ -234,22 +234,30 @@ toFile s = "ccdnewfile " ++
            intercalate (newline ++ newline) (map (scanRot s) (rotations s))
 
 scanRot :: ScanState -> Double -> String
-scanRot s angle = "umv sar " ++ show angle ++ newline  ++ (intercalate newline . map fileLineScan . reverse . scans $ s)
+scanRot s angle = "umv sar " ++ show (round $ angle*180/pi) ++ newline  ++ (intercalate newline . map (fileLineScan angle) . reverse . scans $ s)
 
 data ScanDir = Horizontal | Vertical
 
-fileLineScan :: Scan -> String
-fileLineScan (Scan (x1, y1) (x2, y2) t) =
-    if x1 == x2
-    then scanCommand Vertical (toMM x1) (toMM y1,toMM y2) t
-    else scanCommand Horizontal (toMM y1) (toMM x1,toMM x2) t
+fileLineScan :: Double -> Scan -> String
+fileLineScan angle (Scan (x1, y1) (x2, y2) t) =
+    let r = rot angle
+    in
+      if x1 == x2
+      then scanCommand Vertical (r $ toMM x1) (toMM y1,toMM y2) t $ getSteps y1 y2
+      else scanCommand Horizontal (toMM y1) (r $ toMM x1,r $ toMM x2) t $ getSteps x1 x2
+
+getSteps :: Double -> Double -> Int
+getSteps begin end = (round (abs (toMM (end-begin)) / step) :: Int)
 
 -- | Convert pixel coordinates to real ones
 toMM :: Double -> Double
 toMM x = (x*frameSize/imageSize)
     where
       frameSize = 25 -- The size of the frame in mm
-      imageSize = 400 -- The size of the image in pixels
+      imageSize = 900 -- The size of the image in pixels
+
+rot :: Double -> Double -> Double
+rot angle x = 12.5+(x-12.5)*cos angle
 
 -- | Number of seconds to sleep between runs in a scan
 sleep :: String
@@ -263,15 +271,15 @@ ndark = "1"
 step :: Double
 step = 0.1
 
-scanCommand :: ScanDir -> Double -> (Double,Double) -> String -> String
-scanCommand Vertical x p t = scanCommand' "sah" x "sav" p t
-scanCommand Horizontal y p t = scanCommand' "sav" y "sah" p t
+scanCommand :: ScanDir -> Double -> (Double,Double) -> String -> Int -> String
+scanCommand Vertical x = scanCommand' "sah" x "sav"
+scanCommand Horizontal y = scanCommand' "sav" y "sah"
 
-scanCommand' :: String -> Double -> String -> (Double, Double) -> String -> String
-scanCommand' m1 d1 m2 (begin,end) t =
+scanCommand' :: String -> Double -> String -> (Double, Double) -> String -> Int -> String
+scanCommand' m1 d1 m2 (begin,end) t n =
     let scanString =  intercalate " "
                       ["ccdtrans", m2, show begin, show end,
-                       show $ (floor (abs (end-begin) / step) :: Int),
+                       show n,
                        sleep, t, ndark, "1"]
         moveString = "umv " ++ m1 ++ " " ++ show d1
     in

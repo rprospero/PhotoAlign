@@ -83,7 +83,7 @@ controller action s = do
   modifyIORef' s (\x -> x{fileName=f})
 
   r <- getProp rots "value"
-  modifyIORef' s (\x -> x{rotations=map read . words$r})
+  modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
 
   action
 
