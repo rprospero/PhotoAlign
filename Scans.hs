@@ -9,17 +9,28 @@ import Haste.DOM
 import Haste.JSON
 import Haste.Events
 import Haste.Graphics.Canvas
-import Control.Monad (forM,forM_,(>=>))
+import Control.Monad (forM,forM_,(>=>),liftM)
 
 import JSON
 
 data Scan = Scan {start :: Point,
-                  stop :: Point}
+                  stop :: Point,
+                  title :: String}
             deriving (Show, Eq)
 instance JSONable Scan where
-    toJSON s = Arr . map toJSON $ [start s,stop s]
-    fromJSON (Arr ss) = Scan <$> fromJSON (head ss) <*> fromJSON (ss !! 1)
+    toJSON s = Dict [("title",Str . toJSString$ title s),
+                    ("points",Arr . map toJSON $ [start s,stop s])]
+    fromJSON d@(Dict _) = Scan <$> (getJArr d "points" >>= (fromJSON . head))<*>((getJArr d "points") >>= (fromJSON . (!! 1))) <*> ((d ~> "title") >>= fromJSONStr)
     fromJSON _ = Nothing
+
+fromJSONStr (Str x) = Just (toString x)
+fromJSONStr _ = Nothing
+
+getJArr :: JSON -> JSString -> Maybe [JSON]
+getJArr d k = case d ~> k of
+                Nothing -> Nothing
+                Just (Arr x) -> Just x
+                Just _ -> Nothing
 
 data MouseState = Free | Dragging
                   deriving (Show,Eq)
@@ -71,7 +82,7 @@ updateHead m (ScanState Dragging (s:ss)) =
     ScanState Dragging $ axisScan (start s) (floatPair $ mouseCoords m):ss
 
 axisScan :: Point -> Point -> Scan
-axisScan p p2 = Scan p $ ending p p2
+axisScan p p2 = Scan p (ending p p2) "title"
     where
       ending (x1,y1) (x2,y2) =
           if abs (y2 - y1) > abs (x2 - x1)
@@ -85,11 +96,11 @@ mouseDown action state m = do
   action
 
 startDrag :: Point -> ScanState -> ScanState
-startDrag p st = ScanState Dragging $ Scan p p:scans st
+startDrag p st = ScanState Dragging $ Scan p p "Dragging":scans st
 
 
 scanShape :: ScanState -> Picture ()
-scanShape st = lineWidth 1 . stroke $ forM_ (scans st) (\(Scan a b) -> line a b)
+scanShape st = lineWidth 1 . stroke $ forM_ (scans st) (\(Scan a b _) -> line a b)
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)
@@ -127,7 +138,7 @@ makeTableCell x = do
   with (newElem "td") [children [txt]]
 
 makeScanRow :: Killer -> Scan -> IO Elem
-makeScanRow k sc@(Scan (x1,y1) (x2,y2)) = do
+makeScanRow k sc@(Scan (x1,y1) (x2,y2) t) = do
   row <- makeTableRow . map ((/400) . (*25)) $ [x1, y1, x2, y2]
   deleteButton <- makeDeleteButton
   appendChild row deleteButton
@@ -145,13 +156,13 @@ dropScan action scanState s = do
   modifyIORef' scanState (\x -> x{scans = delete s $scans x})
   action
 
-toFile :: String -> ScanState -> String
-toFile title = intercalate "\r\n" . map (fileLineScan title) . reverse . scans
+toFile :: ScanState -> String
+toFile = intercalate "\r\n" . map fileLineScan . reverse . scans
 
 data ScanDir = Horizontal | Vertical
 
-fileLineScan :: String -> Scan -> String
-fileLineScan title (Scan (x1, y1) (x2, y2)) =
+fileLineScan :: Scan -> String
+fileLineScan (Scan (x1, y1) (x2, y2) title) =
     if x1 == x2
     then scanCommand Vertical (toMM x1) (toMM y1,toMM y2) title
     else scanCommand Horizontal (toMM y1) (toMM x1,toMM x2) title
