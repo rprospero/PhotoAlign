@@ -5,6 +5,14 @@
   </head>
   <body>
     <script src="Main.js"></script>
+    <canvas id="original" style="border: 1px solid black;position: relative" width="1191" height="669"></canvas>
+    <canvas id="aligned" style="border: 1px solid black;position: relative" width="900" height="900"></canvas>
+    <div id="results" class="row">
+      <div class="col-md-12 text-center">
+        <table id="scans" class="table">
+        </table>
+      </div>
+    </div>
     <div class="row">
       <div class="col-md-12 text-center">
         <div class="btn-group" role="group">
@@ -34,13 +42,5 @@
       </div>
     </div>
 
-    <canvas id="aligned" style="border: 1px solid black;position: relative" width="400" height="400"></canvas>
-    <canvas id="original" style="border: 1px solid black;position: relative" width="397" height="223"></canvas>
-    <div id="results" class="row">
-      <div class="col-md-12 text-center">
-        <table id="scans" class="table">
-        </table>
-      </div>
-    </div>
   </body>
 </html>
