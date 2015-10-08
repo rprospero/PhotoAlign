@@ -59,7 +59,7 @@ instance JSONable CalibState where
     fromJSON d = CalibState <$> (d ~~> "mouse") <*> (d ~~> "box")
 
 defaultCalibState :: CalibState
-defaultCalibState = CalibState Free $ BoxMap (0,0) (0,223) (397,223) (397,0)
+defaultCalibState = CalibState Free $ BoxMap (0,0) (0,669) (1191,669) (1191,0)
 
 initCalibState :: IO (IORef CalibState)
 initCalibState = newIORef defaultCalibState
