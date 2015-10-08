@@ -65,24 +65,27 @@ main = do
 
   export "processDump" (processDump calibState scanState)
 
+  let contrl = controller action scanState
+
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  _ <- onEvent runfile Change $ const $ updateRunfile scanState runfile
-  _ <- onEvent rots Change $ const $ updateRotations scanState rots
+  _ <- onEvent runfile Change $ const $ contrl
+  _ <- onEvent rots Change $ const $ contrl
   action
 
--- | Update the global state of the name of the runfile with the value
--- of a form element.
-updateRunfile :: IORef ScanState -> Elem -> IO ()
-updateRunfile s runfile = do
-  value <- getProp runfile "value"
-  print value
-  modifyIORef' s (\x -> x{fileName=value})
+-- | Read text inpure and update the global variables
+controller :: IO () -> IORef ScanState -> IO ()
+controller action s = do
+  Just runfile <- elemById "runfile"
+  Just rots <- elemById "rotations"
 
-updateRotations :: IORef ScanState -> Elem -> IO ()
-updateRotations s rots = do
-  value <- getProp rots "value"
-  modifyIORef' s (\x -> x{rotations=map read . words$value})
+  f <- getProp runfile "value"
+  modifyIORef' s (\x -> x{fileName=f})
+
+  r <- getProp rots "value"
+  modifyIORef' s (\x -> x{rotations=map read . words$r})
+
+  action
 
 -- | Loads a new image file
 updateBitmap :: IO ()  -- ^ The generic page update to perform once the
