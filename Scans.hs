@@ -24,7 +24,7 @@ data Scan = Scan {start :: Point,
 instance JSONable Scan where
     toJSON s = Dict [("title",Str . toJSString$ title s),
                     ("points",Arr . map toJSON $ [start s,stop s])]
-    fromJSON d@(Dict _) = Scan <$> (getJArr d "points" >>= (fromJSON . head))<*>((getJArr d "points") >>= (fromJSON . (!! 1))) <*> ((d ~> "title") >>= fromJSONStr)
+    fromJSON d@(Dict _) = Scan <$> (getJArr d "points" >>= (fromJSON . head))<*>(getJArr d "points" >>= (fromJSON . (!! 1))) <*> ((d ~> "title") >>= fromJSONStr)
     fromJSON _ = Nothing
 
 fromJSONStr :: JSON -> Maybe String
@@ -119,7 +119,7 @@ mouseMove action state m = do
 updateHead :: MouseData -> ScanState -> ScanState
 updateHead m st
     | mouse st == Free = st
-    | scans st == [] = st
+    | null (scans st) = st
     | otherwise =
         let
           s:ss = scans st
@@ -195,8 +195,10 @@ makeTableCell x = do
 makeScanRow :: Changer -> Killer -> Scan -> IO Elem
 makeScanRow c k sc@(Scan (x1,y1) (x2,y2) t) = do
   let toReal = (/900) . (*25)
-  row <- makeTableRow $ [toReal x1, toReal y1, toReal x2, toReal y2, fromIntegral $ getFrameCount sc,
-                        fromIntegral . round . (*(3.5/60)) . fromIntegral . getFrameCount $ sc]
+  row <- makeTableRow [toReal x1, toReal y1, toReal x2, toReal y2,
+                      fromIntegral $ getFrameCount sc,
+                      fromIntegral . round . (*(3.5/60)) . fromIntegral
+                                      . getFrameCount $ sc]
   titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
   appendChild row =<< inCell titleLabel
@@ -209,9 +211,8 @@ inCell :: Elem -> IO Elem
 inCell t = newElem "td" `with` [children [t]]
 
 makeTitleLabel :: String -> IO Elem
-makeTitleLabel s = do
-  newElem "input" `with` [attr "type" =: "text",
-                          attr "value" =: s]
+makeTitleLabel s = newElem "input" `with` [attr "type" =: "text",
+                                           attr "value" =: s]
 
 makeDeleteButton :: IO Elem
 makeDeleteButton = do
@@ -281,11 +282,11 @@ getFrameCount (Scan (x1, y1) (x2, y2) _)
     | otherwise = getSteps x1 x2
 
 getSteps :: Double -> Double -> Int
-getSteps begin end = (round (abs (toMM (end-begin)) / step) :: Int)
+getSteps begin end = round (abs (toMM (end-begin)) / step) :: Int
 
 -- | Convert pixel coordinates to real ones
 toMM :: Double -> Double
-toMM x = (x*frameSize/imageSize)
+toMM x = x*frameSize/imageSize
     where
       frameSize = 25 -- The size of the frame in mm
       imageSize = 900 -- The size of the image in pixels
@@ -330,7 +331,7 @@ z2 s (Scan _ (x,_) _) angle = (toMM x-12.5)* sin angle
 scanCommand :: ScanDir -> ScanState -> Scan -> Double -> String
 scanCommand Vertical s scan angle =
     let moveString = "umv sah " ++ show (x1 s scan angle) ++ " tmp1 " ++ show (z1 s scan angle)
-        scanString = intercalate " "
+        scanString = unwords
                      ["ccdtrans sav", show $ y1 s scan, show $ y2 s scan,
                       show time, show $ getFrameCount scan, show sleep, title scan, show ndark, "1"]
     in moveString ++ newline ++ scanString
@@ -346,20 +347,19 @@ scanCommand Horizontal s scan angle =
                      ++ "  umv sah (" ++ show begin ++ "+i*" ++ show ((end-begin)/fromIntegral n)
                      ++ ") tmp1 (" ++ show zbegin ++ "+i*" ++ show ((zend-zbegin)/fromIntegral n)
                      ++ ")" ++ newline
-                     ++ intercalate " " ["  ccdexpose",show time,"1",show ndark,title scan] ++ newline
+                     ++ unwords ["  ccdexpose",show time,"1",show ndark,title scan] ++ newline
                      ++ "}" ++ newline
     in moveString ++ newline ++ scanString
-
 
 -- | Determines whether the user has provided enough information to write the script file.
 scansReady :: ScanState -> Bool
 scansReady s
-    | scans s == [] = False
-    | (any (invalidTitle) . map title . scans $ s) = False
+    | null (scans s) = False
+    | any invalidTitle . map title . scans $ s = False
     | fileName s == "" = False
-    | rotations s == [] = False
+    | null (rotations s) = False
     | otherwise = True
 
 invalidTitle :: String -> Bool
 invalidTitle "" = True
-invalidTitle t = any (== ' ') t
+invalidTitle t = ' ' `elem` t
