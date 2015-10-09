@@ -344,9 +344,12 @@ scanCommand Horizontal s scan angle =
         n = getFrameCount scan
         scanString = "for(i=0;i<=" ++ show n ++ ";i+=1)" ++ newline
                      ++ "{" ++ newline
-                     ++ "  umv sah (" ++ show begin ++ "+i*" ++ show ((end-begin)/fromIntegral n)
-                     ++ ") tmp2 (" ++ show zbegin ++ "+i*" ++ show ((zend-zbegin)/fromIntegral n)
-                     ++ ")" ++ newline
+                     ++ "  x = " ++ show begin ++ "+i*"
+                     ++ show ((end-begin)/fromIntegral n) ++ newline
+                     ++ "  y = " ++ show zbegin ++ "+i*"
+                     ++ show ((zend-zbegin)/fromIntegral n) ++ newline
+                     ++ "  umv sah y"  ++ newline
+                     ++ "  umv tmp2 x" ++ newline
                      ++ unwords ["  ccdacq",show time,title scan] ++ newline
                      ++ "}" ++ newline
     in moveString ++ newline ++ scanString
