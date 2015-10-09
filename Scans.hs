@@ -324,6 +324,7 @@ scansReady s
     | null (scans s) = False
     | any invalidTitle . map title . scans $ s = False
     | fileName s == "" = False
+    | ' ' `elem` fileName s = False
     | null (rotations s) = False
     | otherwise = True
 
