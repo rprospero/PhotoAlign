@@ -333,7 +333,7 @@ scanCommand Vertical s scan angle =
     let moveString = "umv sah " ++ showDouble (x1 s scan angle) ++ " tmp2 " ++ showDouble (z1 s scan angle)
         scanString = unwords
                      ["ccdtrans sav", showDouble $ y1 s scan, showDouble $ y2 s scan,
-                      show $ getFrameCount scan, show time, show sleep, "\"", title scan, "\"",
+                      show $ getFrameCount scan, show time, show sleep, "\"" ++ title scan ++ "\"",
                       show ndark, "1"]
     in moveString ++ newline ++ scanString
 scanCommand Horizontal s scan angle =
@@ -351,7 +351,7 @@ scanCommand Horizontal s scan angle =
                      ++ showDouble ((zend-zbegin)/fromIntegral n) ++ newline
                      ++ "  umv sah y"  ++ newline
                      ++ "  umv tmp2 x" ++ newline
-                     ++ unwords ["  ccdacq",show time,title scan] ++ newline
+                     ++ unwords ["  ccdacq",show time,"\"" ++ title scan ++ "\""] ++ newline
                      ++ "}" ++ newline
     in moveString ++ newline ++ scanString
 
