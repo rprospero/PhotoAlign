@@ -98,8 +98,10 @@ controller action s = do
   upper <- (fromJust <$> elemById "top") >>= flip getProp "value"
   lower <- (fromJust <$> elemById "bottom") >>= flip getProp "value"
   offs <- (fromJust <$> elemById "offset") >>= flip getProp "value"
+  mount:[] <- elemsByQS document "input[name='mount']:checked"
+  c <- getProp mount "value"
 
-  modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs})
+  modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs,choice=read c})
 
   action
 
