@@ -86,7 +86,7 @@ instance JSONable ScanState where
                             <*> ((d ~> "rotations") >>= fromJSON)
 
 defaultScanState :: ScanState
-defaultScanState = ScanState Free [] "NA" 0 50 0 Top [0,5..90]
+defaultScanState = ScanState Free [] "NA" 0 50 0 Top (map (*(pi/180)) [0,5..90])
 
 -- | Creates a reference to a set of scans
 initScanState :: IO (IORef ScanState)
