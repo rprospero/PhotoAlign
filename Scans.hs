@@ -306,7 +306,7 @@ step = 0.1
 
 -- | Exposure time
 time :: Double
-time = 0.1
+time = 0.04
 
 x1 :: ScanState -> Scan -> Double -> Double
 x1 s (Scan (x,_) _ _) angle = offset s + 12.5 + (toMM x-12.5)* cos angle
