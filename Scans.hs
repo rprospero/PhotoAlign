@@ -85,7 +85,7 @@ instance JSONable ScanState where
                             <*> ((d ~> "rotations") >>= fromJSON)
 
 defaultScanState :: ScanState
-defaultScanState = ScanState Free [] "" 0 50 0 Top [0, 45, 90]
+defaultScanState = ScanState Free [] "NA" 0 50 0 Top [0, 45, 90]
 
 -- | Creates a reference to a set of scans
 initScanState :: IO (IORef ScanState)
@@ -253,10 +253,7 @@ newline = "\r\n"
 
 -- | Turns a ScanState into a script macro for SPEC
 toFile :: ScanState -> String
-toFile s = "ccdnewfile " ++
-           fileName s ++
-           newline ++
-           intercalate (newline ++ newline) (map (scanRot s) (rotations s))
+toFile s = intercalate (newline ++ newline) (map (scanRot s) (rotations s))
 
 scanRot :: ScanState -> Double -> String
 scanRot s angle = "umv sar " ++ show (round $ angle*180/pi) ++ newline  ++ (intercalate newline . map (fileLineScan s angle) . reverse . scans $ s)
