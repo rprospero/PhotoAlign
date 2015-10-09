@@ -14,29 +14,43 @@
     </div>
 
     <div class="row">
-      <div class="col-md-12 text-center">
+      <div class="col-md-2 text-center">
         <label for="runfile">
           Run File
         </label>
         <input type="text" id="runfile"/>
+      </div>
+      <div class="col-md-2 text-center">
         <label for="rotations">
           Rotations
         </label>
         <input type="text" id="rotations" value="0" />
+      </div>
+      <div class="col-md-4 text-center">
 
+        <table>
+          <tr>
+            <td>
+              <input type="radio" name="mount" value="Top">
+              <label for="top">
+                Top origin
+              </label>
+              <input type="number" id="top" value="0" />
+            </td>
+          </tr>
+          <tr>
+            <td>
+              <input type="radio" name="mount" value="Bottom">
+              <label for="bottom">
+                Bottom Origin
+              </label>
+              <input type="number" id="bottom" value="50" />
+            </td>
+          </tr>
+        </table>
+      </div>
 
-        <input type="radio" name="mount" value="Top">
-        <label for="top">
-          Top origin
-        </label>
-        <input type="number" id="top" value="0" />
-
-        <input type="radio" name="mount" value="Bottom">
-        <label for="bottom">
-          Bottom Origin
-        </label>
-        <input type="number" id="bottom" value="50" />
-
+      <div class="col-md-2 text-center">
 
         <label for="offset">
           Horizontal Origin
