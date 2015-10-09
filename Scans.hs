@@ -299,7 +299,7 @@ sleep :: Double
 sleep = 0
 
 -- | Number of dark runs to perform on each scan.
-ndark :: Double
+ndark :: Int
 ndark = 1
 
 -- | Size of step between measurements
@@ -330,7 +330,7 @@ z2 s (Scan _ (x,_) _) angle = (toMM x-12.5)* sin angle
 
 scanCommand :: ScanDir -> ScanState -> Scan -> Double -> String
 scanCommand Vertical s scan angle =
-    let moveString = "umv sah " ++ show (x1 s scan angle) ++ " tmp1 " ++ show (z1 s scan angle)
+    let moveString = "umv sah " ++ show (x1 s scan angle) ++ " tmp2 " ++ show (z1 s scan angle)
         scanString = unwords
                      ["ccdtrans sav", show $ y1 s scan, show $ y2 s scan,
                       show time, show $ getFrameCount scan, show sleep, title scan, show ndark, "1"]
@@ -345,7 +345,7 @@ scanCommand Horizontal s scan angle =
         scanString = "for(i=0;i<=" ++ show n ++ ";i+=1)" ++ newline
                      ++ "{" ++ newline
                      ++ "  umv sah (" ++ show begin ++ "+i*" ++ show ((end-begin)/fromIntegral n)
-                     ++ ") tmp1 (" ++ show zbegin ++ "+i*" ++ show ((zend-zbegin)/fromIntegral n)
+                     ++ ") tmp2 (" ++ show zbegin ++ "+i*" ++ show ((zend-zbegin)/fromIntegral n)
                      ++ ")" ++ newline
                      ++ unwords ["  ccdacq",show time,title scan] ++ newline
                      ++ "}" ++ newline
