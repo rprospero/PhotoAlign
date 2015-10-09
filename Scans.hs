@@ -347,7 +347,7 @@ scanCommand Horizontal s scan angle =
                      ++ "  umv sah (" ++ show begin ++ "+i*" ++ show ((end-begin)/fromIntegral n)
                      ++ ") tmp1 (" ++ show zbegin ++ "+i*" ++ show ((zend-zbegin)/fromIntegral n)
                      ++ ")" ++ newline
-                     ++ unwords ["  ccdexpose",show time,"1",show ndark,title scan] ++ newline
+                     ++ unwords ["  ccdacq",show time,title scan] ++ newline
                      ++ "}" ++ newline
     in moveString ++ newline ++ scanString
 
