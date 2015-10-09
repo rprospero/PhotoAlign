@@ -172,7 +172,7 @@ populateTable c k st e = do
 
 makeTableHeader :: IO Elem
 makeTableHeader = do
-  hs <- mapM makeTableHeader' ["x1","y1","x2","y2","title","Delete"]
+  hs <- mapM makeTableHeader' ["x1","y1","x2","y2","frames","time (minutes)","title","Delete"]
   newElem "tr" `with` [children hs]
 
 makeTableHeader' :: String -> IO Elem
@@ -194,7 +194,9 @@ makeTableCell x = do
 
 makeScanRow :: Changer -> Killer -> Scan -> IO Elem
 makeScanRow c k sc@(Scan (x1,y1) (x2,y2) t) = do
-  row <- makeTableRow . map ((/900) . (*25)) $ [x1, y1, x2, y2]
+  let toReal = (/900) . (*25)
+  row <- makeTableRow $ [toReal x1, toReal y1, toReal x2, toReal y2, fromIntegral $ getFrameCount sc,
+                        fromIntegral . round . (*(3.5/60)) . fromIntegral . getFrameCount $ sc]
   titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
   appendChild row =<< inCell titleLabel
@@ -273,6 +275,10 @@ voffset s = case choice s of
               Top -> top s
               Bottom -> bottom s
 
+getFrameCount :: Scan -> Int
+getFrameCount (Scan (x1, y1) (x2, y2) _)
+    | x1 == x2 = getSteps y1 y2
+    | otherwise = getSteps x1 x2
 
 getSteps :: Double -> Double -> Int
 getSteps begin end = (round (abs (toMM (end-begin)) / step) :: Int)
