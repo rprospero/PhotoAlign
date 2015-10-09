@@ -75,11 +75,11 @@ main = do
   mounts <- elemsByQS document "input[name='mount']"
   -- Just choice <- elemById "mount"
 
-  let triggerController evt x = onEvent x evt $ const $ contrl
+  let triggerController evt x = onEvent x evt $ const contrl
 
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  mapM_ (triggerController Change) $ concat [mounts, [runfile, rots, upper, lower, offs]]
+  mapM_ (triggerController Change) $ mounts ++ [runfile, rots, upper, lower, offs]
   mapM_ (triggerController KeyDown) [runfile, rots, upper, lower, offs]
   action
 
@@ -98,7 +98,7 @@ controller action s = do
   upper <- (fromJust <$> elemById "top") >>= flip getProp "value"
   lower <- (fromJust <$> elemById "bottom") >>= flip getProp "value"
   offs <- (fromJust <$> elemById "offset") >>= flip getProp "value"
-  mount:[] <- elemsByQS document "input[name='mount']:checked"
+  [mount] <- elemsByQS document "input[name='mount']:checked"
   c <- getProp mount "value"
 
   modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs,choice=read c})
@@ -166,9 +166,9 @@ updatePage scanState calibState background = do
 toggleExport :: ScanState -> IO ()
 toggleExport s = do
   Just b <- elemById "exportLink"
-  case scansReady s of
-    True -> setAttr b "class" "btn btn-primary"
-    False -> setAttr b "class" "btn btn-primary disabled"
+  if scansReady s
+  then setAttr b "class" "btn btn-primary"
+  else setAttr b "class" "btn btn-primary disabled"
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawCalibration c background can = do
