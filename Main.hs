@@ -72,15 +72,15 @@ main = do
   Just upper <- elemById "top"
   Just lower <- elemById "bottom"
   Just offs <- elemById "offset"
+  mounts <- elemsByQS document "input[name='mount']"
   -- Just choice <- elemById "mount"
+
+  let triggerController evt x = onEvent x evt $ const $ contrl
 
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  _ <- onEvent runfile Change $ const $ contrl
-  _ <- onEvent rots Change $ const $ contrl
-  _ <- onEvent upper Change $ const $ contrl
-  _ <- onEvent lower Change $ const $ contrl
-  _ <- onEvent offs Change $ const $ contrl
+  mapM_ (triggerController Change) $ concat [mounts, [runfile, rots, upper, lower, offs]]
+  mapM_ (triggerController KeyDown) [runfile, rots, upper, lower, offs]
   action
 
 -- | Read text inpure and update the global variables
