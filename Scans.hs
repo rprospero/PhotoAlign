@@ -333,7 +333,8 @@ scanCommand Vertical s scan angle =
     let moveString = "umv sah " ++ showDouble (x1 s scan angle) ++ " tmp2 " ++ showDouble (z1 s scan angle)
         scanString = unwords
                      ["ccdtrans sav", showDouble $ y1 s scan, showDouble $ y2 s scan,
-                      show time, show $ getFrameCount scan, show sleep, title scan, show ndark, "1"]
+                      show $ getFrameCount scan, show time, show sleep, "\"", title scan, "\"",
+                      show ndark, "1"]
     in moveString ++ newline ++ scanString
 scanCommand Horizontal s scan angle =
     let moveString = "umv sav " ++ showDouble (y1 s scan)
