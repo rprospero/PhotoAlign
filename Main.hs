@@ -13,6 +13,7 @@ import Haste.Graphics.Canvas
 import Haste.JSON
 import Data.IORef
 import Data.Monoid
+import Data.Maybe (fromJust)
 
 import Calibrate
 import Scans
@@ -67,10 +68,19 @@ main = do
 
   let contrl = controller action scanState
 
+
+  Just upper <- elemById "top"
+  Just lower <- elemById "bottom"
+  Just offs <- elemById "offset"
+  -- Just choice <- elemById "mount"
+
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
   _ <- onEvent runfile Change $ const $ contrl
   _ <- onEvent rots Change $ const $ contrl
+  _ <- onEvent upper Change $ const $ contrl
+  _ <- onEvent lower Change $ const $ contrl
+  _ <- onEvent offs Change $ const $ contrl
   action
 
 -- | Read text inpure and update the global variables
@@ -84,6 +94,12 @@ controller action s = do
 
   r <- getProp rots "value"
   modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
+
+  upper <- (fromJust <$> elemById "top") >>= flip getProp "value"
+  lower <- (fromJust <$> elemById "bottom") >>= flip getProp "value"
+  offs <- (fromJust <$> elemById "offset") >>= flip getProp "value"
+
+  modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs})
 
   action
 

@@ -2,7 +2,9 @@
 
 
 -- | This module handles all of the scans requested by the user
-module Scans (attachScanEvents, initScanState, scanShape, ScanState(fileName,rotations), scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
+module Scans (attachScanEvents, initScanState, scanShape,
+              ScanState(fileName,rotations,top,bottom,offset,choice),
+              scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
 import Data.List (delete,intercalate)
@@ -46,6 +48,16 @@ instance JSONable MouseState where
                          _ -> Nothing
     fromJSON _ = Nothing
 
+data Frame = Top | Bottom
+             deriving (Eq, Show, Read)
+instance JSONable Frame where
+    toJSON =Str . toJSString .show
+    fromJSON (Str x) = case fromJSStr x of
+                         "Top" -> Just Top
+                         "Bottom" -> Just Bottom
+                         _ -> Nothing
+    fromJSON _ = Nothing
+
 -- | The complete state of the user's scanning selections
 data ScanState = ScanState {mouse :: MouseState, -- ^ whether a new
                                                 -- scan is currently
@@ -54,16 +66,26 @@ data ScanState = ScanState {mouse :: MouseState, -- ^ whether a new
                                             -- user has requested.
                             fileName :: String, -- ^ The run name for
                                                -- the scans
+                            top :: Double, -- ^ The Y offset of the
+                                          -- upper frame
+                            bottom :: Double, -- ^ The Y offset of the
+                                             -- lower frame
+                            offset :: Double, -- ^ The X offset of the
+                                             -- frames
+                            choice :: Frame, -- ^ Which frame position
+                                            -- holds the sample.
                             rotations :: [Double]} -- ^ The rotation
                                                   -- angles that we
                                                   -- wish to measure
                  deriving (Eq,Show)
 instance JSONable ScanState where
-    toJSON s = Dict . zip ["mouse","scans","fileName","rotations"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s,toJSON $ rotations s]
-    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans") <*> (d ~> "fileName" >>= fromJSONStr)  <*> ((d ~> "rotations") >>= fromJSON)
+    toJSON s = Dict . zip ["mouse","scans","fileName","top","bottom","offset","choice","rotations"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s,toJSON $ top s, toJSON $ bottom s, toJSON $ offset s, toJSON $ choice s, toJSON $ rotations s]
+    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans") <*> (d ~> "fileName" >>= fromJSONStr)  <*> ((d ~> "top") >>= fromJSON)
+                            <*> ((d ~> "bottom") >>= fromJSON) <*> ((d ~> "offset") >>= fromJSON) <*> ((d ~> "choice") >>= fromJSON)
+                            <*> ((d ~> "rotations") >>= fromJSON)
 
 defaultScanState :: ScanState
-defaultScanState = ScanState Free [] "" [15]
+defaultScanState = ScanState Free [] "" 0 50 0 Top [0, 45, 90]
 
 -- | Creates a reference to a set of scans
 initScanState :: IO (IORef ScanState)
