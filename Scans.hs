@@ -256,17 +256,23 @@ toFile s = "ccdnewfile " ++
            intercalate (newline ++ newline) (map (scanRot s) (rotations s))
 
 scanRot :: ScanState -> Double -> String
-scanRot s angle = "umv sar " ++ show (round $ angle*180/pi) ++ newline  ++ (intercalate newline . map (fileLineScan angle) . reverse . scans $ s)
+scanRot s angle = "umv sar " ++ show (round $ angle*180/pi) ++ newline  ++ (intercalate newline . map (fileLineScan s angle) . reverse . scans $ s)
 
 data ScanDir = Horizontal | Vertical
 
-fileLineScan :: Double -> Scan -> String
-fileLineScan angle (Scan (x1, y1) (x2, y2) t) =
+fileLineScan :: ScanState -> Double -> Scan -> String
+fileLineScan s angle (Scan (x1, y1) (x2, y2) t) =
     let r = rot angle
     in
       if x1 == x2
-      then scanCommand Vertical (r $ toMM x1) (toMM y1,toMM y2) t $ getSteps y1 y2
-      else scanCommand Horizontal (toMM y1) (r $ toMM x1,r $ toMM x2) t $ getSteps x1 x2
+      then scanCommand Vertical (offset s + (r $ toMM x1)) (voffset s + toMM y1,voffset s + toMM y2) t $ getSteps y1 y2
+      else scanCommand Horizontal (voffset s + toMM y1) (offset s + r (toMM x1), offset s + r (toMM x2)) t $ getSteps x1 x2
+
+voffset :: ScanState -> Double
+voffset s = case choice s of
+              Top -> top s
+              Bottom -> bottom s
+
 
 getSteps :: Double -> Double -> Int
 getSteps begin end = (round (abs (toMM (end-begin)) / step) :: Int)
