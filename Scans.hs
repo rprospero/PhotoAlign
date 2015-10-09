@@ -341,9 +341,9 @@ scanCommand Horizontal s scan angle =
         n = getFrameCount scan
         scanString = "for(i=0;i<=" ++ show n ++ ";i+=1)" ++ newline
                      ++ "{" ++ newline
-                     ++ "  x = " ++ show begin ++ "+i*"
+                     ++ "  y = " ++ show begin ++ "+i*"
                      ++ show ((end-begin)/fromIntegral n) ++ newline
-                     ++ "  y = " ++ show zbegin ++ "+i*"
+                     ++ "  x = " ++ show zbegin ++ "+i*"
                      ++ show ((zend-zbegin)/fromIntegral n) ++ newline
                      ++ "  umv sah y"  ++ newline
                      ++ "  umv tmp2 x" ++ newline
