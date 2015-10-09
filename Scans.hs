@@ -263,12 +263,12 @@ scanRot s angle = "umv sar " ++ show (round $ angle*180/pi) ++ newline  ++ (inte
 data ScanDir = Horizontal | Vertical
 
 fileLineScan :: ScanState -> Double -> Scan -> String
-fileLineScan s angle (Scan (x1, y1) (x2, y2) t) =
+fileLineScan s angle sc@(Scan (x1, y1) (x2, y2) t) =
     let r = rot angle
     in
       if x1 == x2
-      then scanCommand Vertical (offset s + (r $ toMM x1)) (voffset s + toMM y1,voffset s + toMM y2) t $ getSteps y1 y2
-      else scanCommand Horizontal (voffset s + toMM y1) (offset s + r (toMM x1), offset s + r (toMM x2)) t $ getSteps x1 x2
+      then scanCommand Vertical s sc angle
+      else scanCommand Horizontal s sc angle
 
 voffset :: ScanState -> Double
 voffset s = case choice s of
@@ -294,30 +294,62 @@ rot :: Double -> Double -> Double
 rot angle x = 12.5+(x-12.5)*cos angle
 
 -- | Number of seconds to sleep between runs in a scan
-sleep :: String
-sleep = "0"
+sleep :: Double
+sleep = 0
 
 -- | Number of dark runs to perform on each scan.
-ndark :: String
-ndark = "1"
+ndark :: Double
+ndark = 1
 
 -- | Size of step between measurements
 step :: Double
 step = 0.1
 
-scanCommand :: ScanDir -> Double -> (Double,Double) -> String -> Int -> String
-scanCommand Vertical x = scanCommand' "sah" x "sav"
-scanCommand Horizontal y = scanCommand' "sav" y "sah"
+-- | Exposure time
+time :: Double
+time = 0.1
 
-scanCommand' :: String -> Double -> String -> (Double, Double) -> String -> Int -> String
-scanCommand' m1 d1 m2 (begin,end) t n =
-    let scanString =  intercalate " "
-                      ["ccdtrans", m2, show begin, show end,
-                       show n,
-                       sleep, t, ndark, "1"]
-        moveString = "umv " ++ m1 ++ " " ++ show d1
-    in
-      moveString ++ newline ++ scanString
+x1 :: ScanState -> Scan -> Double -> Double
+x1 s (Scan (x,_) _ _) angle = offset s + 12.5 + (toMM x-12.5)* cos angle
+x2 :: ScanState -> Scan -> Double -> Double
+x2 s (Scan _ (x,_) _) angle = offset s + 12.5 + (toMM x-12.5)* cos angle
+y1 :: ScanState -> Scan -> Double
+y1 s (Scan (_,y) _ _) = case choice s of
+                          Top -> top s + toMM y
+                          Bottom -> bottom s + toMM y
+y2 :: ScanState -> Scan -> Double
+y2 s (Scan _ (_,y) _)  =case choice s of
+                          Top -> top s + toMM y
+                          Bottom -> bottom s + toMM y
+z1 :: ScanState -> Scan -> Double -> Double
+z1 s (Scan (x,_) _ _) angle = (toMM x-12.5)* sin angle
+z2 :: ScanState -> Scan -> Double -> Double
+z2 s (Scan _ (x,_) _) angle = (toMM x-12.5)* sin angle
+
+
+scanCommand :: ScanDir -> ScanState -> Scan -> Double -> String
+scanCommand Vertical s scan angle =
+    let moveString = "umv sah " ++ show (x1 s scan angle) ++ " tmp1 " ++ show (z1 s scan angle)
+        scanString = intercalate " "
+                     ["ccdtrans sav", show $ y1 s scan, show $ y2 s scan,
+                      show time, show $ getFrameCount scan, show sleep, title scan, show ndark, "1"]
+    in moveString ++ newline ++ scanString
+scanCommand Horizontal s scan angle =
+    let moveString = "umv sav " ++ show (y1 s scan)
+        begin = x1 s scan angle
+        end = x2 s scan angle
+        zbegin = z1 s scan angle
+        zend = z2 s scan angle
+        n = getFrameCount scan
+        scanString = "for(i=0;i<=" ++ show n ++ ";i+=1)" ++ newline
+                     ++ "{" ++ newline
+                     ++ "  umv sah (" ++ show begin ++ "+i*" ++ show ((end-begin)/fromIntegral n)
+                     ++ ") tmp1 (" ++ show zbegin ++ "+i*" ++ show ((zend-zbegin)/fromIntegral n)
+                     ++ ")" ++ newline
+                     ++ intercalate " " ["  ccdexpose",show time,"1",show ndark,title scan] ++ newline
+                     ++ "}" ++ newline
+    in moveString ++ newline ++ scanString
+
 
 -- | Determines whether the user has provided enough information to write the script file.
 scansReady :: ScanState -> Bool
