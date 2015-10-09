@@ -14,6 +14,7 @@ import Haste.JSON
 import Haste.Events
 import Haste.Graphics.Canvas
 import Control.Monad (forM,forM_,(>=>))
+import Text.Printf
 
 import JSON
 
@@ -324,16 +325,18 @@ z1 s (Scan (x,_) _ _) angle = (toMM x-12.5)* sin angle
 z2 :: ScanState -> Scan -> Double -> Double
 z2 s (Scan _ (x,_) _) angle = (toMM x-12.5)* sin angle
 
+showDouble :: Double -> String
+showDouble = printf "%.3f"
 
 scanCommand :: ScanDir -> ScanState -> Scan -> Double -> String
 scanCommand Vertical s scan angle =
-    let moveString = "umv sah " ++ show (x1 s scan angle) ++ " tmp2 " ++ show (z1 s scan angle)
+    let moveString = "umv sah " ++ showDouble (x1 s scan angle) ++ " tmp2 " ++ showDouble (z1 s scan angle)
         scanString = unwords
-                     ["ccdtrans sav", show $ y1 s scan, show $ y2 s scan,
+                     ["ccdtrans sav", showDouble $ y1 s scan, showDouble $ y2 s scan,
                       show time, show $ getFrameCount scan, show sleep, title scan, show ndark, "1"]
     in moveString ++ newline ++ scanString
 scanCommand Horizontal s scan angle =
-    let moveString = "umv sav " ++ show (y1 s scan)
+    let moveString = "umv sav " ++ showDouble (y1 s scan)
         begin = x1 s scan angle
         end = x2 s scan angle
         zbegin = z1 s scan angle
@@ -341,10 +344,10 @@ scanCommand Horizontal s scan angle =
         n = getFrameCount scan
         scanString = "for(i=0;i<=" ++ show n ++ ";i+=1)" ++ newline
                      ++ "{" ++ newline
-                     ++ "  y = " ++ show begin ++ "+i*"
-                     ++ show ((end-begin)/fromIntegral n) ++ newline
-                     ++ "  x = " ++ show zbegin ++ "+i*"
-                     ++ show ((zend-zbegin)/fromIntegral n) ++ newline
+                     ++ "  y = " ++ showDouble begin ++ "+i*"
+                     ++ showDouble ((end-begin)/fromIntegral n) ++ newline
+                     ++ "  x = " ++ showDouble zbegin ++ "+i*"
+                     ++ showDouble ((zend-zbegin)/fromIntegral n) ++ newline
                      ++ "  umv sah y"  ++ newline
                      ++ "  umv tmp2 x" ++ newline
                      ++ unwords ["  ccdacq",show time,title scan] ++ newline
