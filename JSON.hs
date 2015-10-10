@@ -9,6 +9,8 @@ module JSON where
 import Haste
 import Haste.Graphics.Canvas
 import Haste.JSON
+import Prelude hiding (head, tail, init, last, read, (!!))
+import Safe (atMay,headMay)
 
 -- | Values which can be converted back and forth from JSON.  The main
 -- class laws is that
@@ -48,7 +50,8 @@ instance JSONable a => JSONable [a] where
 -- | Turns a Point into a two element JSON array
 instance JSONable Point where
     toJSON (x,y) = Arr . map toJSON $ [x,y]
-    fromJSON (Arr ps) = (,) <$> fromJSON (head ps) <*> fromJSON (ps !! 1)
+    fromJSON (Arr ps) = (,) <$> (headMay ps >>= fromJSON)
+                        <*> (ps `atMay` 1 >>= fromJSON)
     fromJSON _ = Nothing
 
 -- | Pull a value from a JSON object
