@@ -11,10 +11,12 @@ import Haste.Events
 import Haste.Foreign
 import Haste.Graphics.Canvas
 import Haste.JSON
+import Control.Error.Safe (rightMay)
 import Control.Monad (liftM,(>=>))
+import Control.Monad.Trans.Class (lift)
+import Control.Monad.Trans.Maybe (MaybeT(MaybeT,runMaybeT))
 import Data.IORef
 import Data.Monoid
-import Data.Maybe (fromJust)
 
 import Calibrate
 import Scans
@@ -48,67 +50,68 @@ readAsText = ffi "function(name,x){var r = new FileReader;r.onload=function(q){H
 -- | The actual Photoalign program
 main :: IO ()
 main = do
-  Just filePath <- elemById "filePath"
-  Just loadPath <- elemById "loadPath"
-  Just rots <- elemById "rotations"
-  Just stepSize <- elemById "stepSize"
   calibState <- initCalibState
   scanState <- initScanState
   rawBackground <- loadBitmap image
   background <- newIORef rawBackground
   imageName <- newIORef "IndianRoller2.jpg"
+  mounts <- elemsByQS document "input[name='mount']"
 
   let action = updatePage scanState calibState background
-
-  Just can <- getCanvasById "original"
-  Just acan <- getCanvasById "aligned"
-  attachEvents calibState can action
-  attachScanEvents scanState acan action
+      contrl = controller action scanState
+      triggerController evt x = onEvent x evt $ const contrl
 
   export "processDump" (processDump calibState scanState)
 
-  let contrl = controller action scanState
+  ignoreMaybeT $ do
+         filePath <- MaybeT $ elemById "filePath"
+         loadPath <- MaybeT $ elemById "loadPath"
+         _ <- lift $ onEvent filePath Change $ updateBitmap action background imageName
+         _ <- lift $ onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
+         rots <- MaybeT $ elemById "rotations"
+         stepSize <- MaybeT $ elemById "stepSize"
 
 
-  Just upper <- elemById "top"
-  Just lower <- elemById "bottom"
-  Just offs <- elemById "offset"
-  mounts <- elemsByQS document "input[name='mount']"
-  -- Just choice <- elemById "mount"
+         can <- MaybeT $ getCanvasById "original"
+         acan <- MaybeT $ getCanvasById "aligned"
+         lift $ attachEvents calibState can action
+         lift $ attachScanEvents scanState acan action
+         upper <- MaybeT $ elemById "top"
+         lower <- MaybeT $ elemById "bottom"
+         offs <- MaybeT $ elemById "offset"
 
-  let triggerController evt x = onEvent x evt $ const contrl
-
-  _ <- onEvent filePath Change $ updateBitmap action background imageName
-  _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  mapM_ (triggerController Change) $ mounts ++ [stepSize,rots, upper, lower, offs]
-  mapM_ (triggerController KeyDown) [stepSize, rots, upper, lower, offs]
+         lift $ mapM_ (triggerController Change) $ mounts ++ [stepSize,rots, upper, lower, offs]
+         lift $ mapM_ (triggerController KeyDown) [stepSize, rots, upper, lower, offs]
   action
 
 -- | Get the value from an element
-valueById :: ElemID -> IO String
-valueById = liftM fromJust . elemById >=> flip getProp "value"
+valueById :: ElemID -> MaybeT IO String
+valueById = MaybeT  . elemById >=> flip getProp "value"
 
-setAttrById :: ElemID -> PropID -> String -> IO ()
+setAttrById :: ElemID -> PropID -> String -> MaybeT IO ()
 setAttrById e p v =  do
-  el <- fromJust <$> elemById e
+  el <- MaybeT $  elemById e
   setAttr el p v
 
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
 controller action s = do
-  r <- valueById "rotations"
-  modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
+  runMaybeT $ do
+    r <- valueById "rotations"
+    lift $ modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
 
-  size <- valueById "stepSize"
-  modifyIORef' s (\x -> x{step=read size})
+  runMaybeT $ do
+    size <- valueById "stepSize"
+    lift $ modifyIORef' s (\x -> x{step=read size})
 
-  upper <- valueById "top"
-  lower <- valueById "bottom"
-  offs <- valueById "offset"
-  [mount] <- elemsByQS document "input[name='mount']:checked"
-  c <- getProp mount "value"
+  runMaybeT $ do
+    upper <- valueById "top"
+    lower <- valueById "bottom"
+    offs <- valueById "offset"
+    [mount] <- elemsByQS document "input[name='mount']:checked"
+    c <- getProp mount "value"
 
-  modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs,choice=read c})
+    lift $ modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs,choice=read c})
 
   action
 
@@ -125,8 +128,9 @@ updateBitmap action background nameRef () = do
     imageName <- Main.getFileName "filePath"
     writeIORef nameRef imageName
 
-    setAttrById "saveLink" "download" $ imageName <> ".json"
-    setAttrById "exportLink" "download" $ imageName <> ".txt"
+    runMaybeT $ do
+      setAttrById "saveLink" "download" $ imageName <> ".json"
+      setAttrById "exportLink" "download" $ imageName <> ".txt"
 
     action
 
@@ -135,14 +139,18 @@ processDump :: IORef CalibState -- ^ The global state of the calibration
               -> IORef ScanState -- ^ The global state of the scans
               -> JSString -- ^ The text of the JSON file
               -> IO ()
-processDump c s result =
-  case decodeJSON result of
-    Left _ -> return ()
-    Right json -> case fromJSON json of
-                   Just d -> do
-                           writeIORef c $ calib d
-                           writeIORef s $ scandata d
-                   Nothing -> return ()
+processDump c s result = ignoreMaybeT $ do
+  d <- MaybeT . return $ (rightMay . decodeJSON) result >>= fromJSON
+  lift $ writeIORef c $ calib d
+  lift $ writeIORef s $ scandata d
+
+  -- case decodeJSON result of
+  --   Left _ -> return ()
+  --   Right json -> case fromJSON json of
+  --                  Just d -> do
+  --                          writeIORef c $ calib d
+  --                          writeIORef s $ scandata d
+  --                  Nothing -> return ()
 
 updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> IO ()
 updatePage scanState calibState background = do
@@ -171,7 +179,7 @@ toggleExport s = let
         then ""
         else " disabled"
   in
-    setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
+    ignoreMaybeT $ setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawCalibration c background can = do
@@ -192,7 +200,10 @@ fileSave :: ElemID -> String -> IO()
 fileSave e contents = do
   encoded <- encodeURIComponent contents
   let uri = "data:text/plain;charset=utf-8," <> encoded
-  setAttrById e "href" uri
+  ignoreMaybeT $ setAttrById e "href" uri
+
+ignoreMaybeT :: (Monad m) => MaybeT m () -> m ()
+ignoreMaybeT x = runMaybeT x >> return ()
 
 encodeURIComponent :: String -> IO String
 encodeURIComponent = ffi "encodeURIComponent"
