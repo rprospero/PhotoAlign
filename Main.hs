@@ -11,6 +11,7 @@ import Haste.Events
 import Haste.Foreign
 import Haste.Graphics.Canvas
 import Haste.JSON
+import Control.Monad (liftM,(>=>))
 import Data.IORef
 import Data.Monoid
 import Data.Maybe (fromJust)
@@ -83,22 +84,27 @@ main = do
   mapM_ (triggerController KeyDown) [stepSize, rots, upper, lower, offs]
   action
 
+-- | Get the value from an element
+valueById :: ElemID -> IO String
+valueById = liftM fromJust . elemById >=> flip getProp "value"
+
+setAttrById :: ElemID -> PropID -> String -> IO ()
+setAttrById e p v =  do
+  el <- fromJust <$> elemById e
+  setAttr el p v
+
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
 controller action s = do
-  Just rots <- elemById "rotations"
-
-  r <- getProp rots "value"
+  r <- valueById "rotations"
   modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
 
-  Just stepSize <- elemById "stepSize"
-
-  size <- getProp stepSize "value"
+  size <- valueById "stepSize"
   modifyIORef' s (\x -> x{step=read size})
 
-  upper <- (fromJust <$> elemById "top") >>= flip getProp "value"
-  lower <- (fromJust <$> elemById "bottom") >>= flip getProp "value"
-  offs <- (fromJust <$> elemById "offset") >>= flip getProp "value"
+  upper <- valueById "top"
+  lower <- valueById "bottom"
+  offs <- valueById "offset"
   [mount] <- elemsByQS document "input[name='mount']:checked"
   c <- getProp mount "value"
 
@@ -114,16 +120,14 @@ updateBitmap :: IO ()  -- ^ The generic page update to perform once the
              -> ()
              -> IO ()
 updateBitmap action background nameRef () = do
-    imagePath <- getFilePath "filePath"
-    rawBackground <- loadBitmap imagePath
-    writeIORef background rawBackground
+    getFilePath "filePath" >>= loadBitmap >>= writeIORef background
+
     imageName <- Main.getFileName "filePath"
     writeIORef nameRef imageName
-    Just saveLink <- elemById "saveLink"
-    setAttr saveLink "download" $ imageName <> ".json"
 
-    Just exportLink <- elemById "exportLink"
-    setAttr exportLink "download" $ imageName <> ".txt"
+    setAttrById "saveLink" "download" $ imageName <> ".json"
+    setAttrById "exportLink" "download" $ imageName <> ".txt"
+
     action
 
 -- | Updates the global state to the values from the JSON file
@@ -162,11 +166,12 @@ updatePage scanState calibState background = do
   fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
 
 toggleExport :: ScanState -> IO ()
-toggleExport s = do
-  Just b <- elemById "exportLink"
-  if scansReady s
-  then setAttr b "class" "btn btn-primary"
-  else setAttr b "class" "btn btn-primary disabled"
+toggleExport s = let
+    c = if scansReady s
+        then ""
+        else " disabled"
+  in
+    setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawCalibration c background can = do
@@ -185,10 +190,9 @@ drawAligned s c background can = do
 
 fileSave :: ElemID -> String -> IO()
 fileSave e contents = do
-  Just el <- elemById e
   encoded <- encodeURIComponent contents
   let uri = "data:text/plain;charset=utf-8," <> encoded
-  setAttr el "href" uri
+  setAttrById e "href" uri
 
 encodeURIComponent :: String -> IO String
 encodeURIComponent = ffi "encodeURIComponent"
