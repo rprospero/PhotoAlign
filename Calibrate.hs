@@ -12,6 +12,8 @@ import Haste.Events
 import Haste.Graphics.Canvas
 import Haste.JSON
 import Data.List (elemIndex)
+import Prelude hiding (head, tail, init, last, read, (!!))
+import Safe (headMay, atMay)
 
 import JSON
 
@@ -46,11 +48,12 @@ data BoxMap = BoxMap Point Point Point Point
               deriving (Eq,Show)
 instance JSONable BoxMap where
     toJSON (BoxMap a b c d) = Arr . map toJSON $ [a,b,c,d]
-    fromJSON (Arr ps) = let points = map fromJSON ps
-                        in BoxMap <$> head points
-                               <*> (points !! 1)
-                               <*> (points !! 2)
-                               <*> (points !! 3)
+    fromJSON (Arr ps) = do
+      points <- mapM fromJSON ps
+      BoxMap <$> headMay points
+                 <*> points `atMay` 1
+                 <*> points `atMay` 2
+                 <*> points `atMay` 3
     fromJSON _ = Nothing
 
 -- | A structure to handle the complete state of the calibration system
