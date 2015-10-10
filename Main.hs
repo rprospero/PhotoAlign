@@ -49,7 +49,6 @@ main :: IO ()
 main = do
   Just filePath <- elemById "filePath"
   Just loadPath <- elemById "loadPath"
-  Just runfile <- elemById "runfile"
   Just rots <- elemById "rotations"
   calibState <- initCalibState
   scanState <- initScanState
@@ -79,18 +78,14 @@ main = do
 
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  mapM_ (triggerController Change) $ mounts ++ [runfile, rots, upper, lower, offs]
-  mapM_ (triggerController KeyDown) [runfile, rots, upper, lower, offs]
+  mapM_ (triggerController Change) $ mounts ++ [rots, upper, lower, offs]
+  mapM_ (triggerController KeyDown) [rots, upper, lower, offs]
   action
 
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
 controller action s = do
-  Just runfile <- elemById "runfile"
   Just rots <- elemById "rotations"
-
-  f <- getProp runfile "value"
-  modifyIORef' s (\x -> x{fileName=f})
 
   r <- getProp rots "value"
   modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
@@ -147,9 +142,6 @@ updatePage scanState calibState background = do
   Just can1 <- getCanvasById "original"
   Just can2 <- getCanvasById "aligned"
   Just tbl <- elemById "scans"
-  Just runFile <- elemById "runfile"
-
-  setProp runFile "value" $ fileName s
 
   toggleExport s
 

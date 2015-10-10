@@ -3,7 +3,7 @@
 
 -- | This module handles all of the scans requested by the user
 module Scans (attachScanEvents, initScanState, scanShape,
-              ScanState(fileName,rotations,top,bottom,offset,choice),
+              ScanState(step,rotations,top,bottom,offset,choice),
               scansReady, populateTable,dropScan,updateTitle,toFile,MouseState) where
 
 import Data.IORef
@@ -65,8 +65,6 @@ data ScanState = ScanState {mouse :: MouseState, -- ^ whether a new
                                                 -- being created.
                             scans :: [Scan], -- ^ The scans that the
                                             -- user has requested.
-                            fileName :: String, -- ^ The run name for
-                                               -- the scans
                             top :: Double, -- ^ The Y offset of the
                                           -- upper frame
                             bottom :: Double, -- ^ The Y offset of the
@@ -75,18 +73,29 @@ data ScanState = ScanState {mouse :: MouseState, -- ^ whether a new
                                              -- frames
                             choice :: Frame, -- ^ Which frame position
                                             -- holds the sample.
+                            step :: Double, -- ^ The Scan step size in mm
                             rotations :: [Double]} -- ^ The rotation
                                                   -- angles that we
                                                   -- wish to measure
                  deriving (Eq,Show)
 instance JSONable ScanState where
-    toJSON s = Dict . zip ["mouse","scans","fileName","top","bottom","offset","choice","rotations"] $ [toJSON $ mouse s,toJSON $ scans s, Str . toJSString $ fileName s,toJSON $ top s, toJSON $ bottom s, toJSON $ offset s, toJSON $ choice s, toJSON $ rotations s]
-    fromJSON d = ScanState <$> (d ~~> "mouse") <*> (d ~~> "scans") <*> (d ~> "fileName" >>= fromJSONStr)  <*> ((d ~> "top") >>= fromJSON)
-                            <*> ((d ~> "bottom") >>= fromJSON) <*> ((d ~> "offset") >>= fromJSON) <*> ((d ~> "choice") >>= fromJSON)
-                            <*> ((d ~> "rotations") >>= fromJSON)
+    toJSON s = Dict . zip ["mouse","scans","top","bottom","offset","choice","step","rotations"] $ [toJSON $ mouse s,toJSON $ scans s, toJSON $ top s, toJSON $ bottom s, toJSON $ offset s, toJSON $ choice s, toJSON $ step s, toJSON $ rotations s]
+    fromJSON d = ScanState <$> (d ~~> "mouse")
+                 <*> (d ~~> "scans")
+                 <*> ((d ~> "top") >>= fromJSON)
+                 <*> ((d ~> "bottom") >>= fromJSON)
+                 <*> ((d ~> "offset") >>= fromJSON)
+                 <*> ((d ~> "choice") >>= fromJSON)
+                 <*> defaultStep d
+                 <*> ((d ~> "rotations") >>= fromJSON)
+
+defaultStep d =
+    case (d ~> "step") of
+      Just x -> fromJSON x
+      Nothing -> Just 0.1 -- Default step size from V0.1
 
 defaultScanState :: ScanState
-defaultScanState = ScanState Free [] "NA" 0 50 0 Top (map (*(pi/180)) [0,5..90])
+defaultScanState = ScanState Free [] 0 50 0 Top 0.5 (map (*(pi/180)) [0,5..50])
 
 -- | Creates a reference to a set of scans
 initScanState :: IO (IORef ScanState)
@@ -168,7 +177,7 @@ populateTable c k st e = do
   clearChildren e
   header <- makeTableHeader
   appendChild e header
-  _ <- forM (reverse $ scans st) (makeScanRow c k >=> appendChild e)
+  _ <- forM (reverse $ scans st) (makeScanRow c k (step st) >=> appendChild e)
   return ()
 
 makeTableHeader :: IO Elem
@@ -193,13 +202,13 @@ makeTableCell x = do
   txt <- newTextElem $ show x
   with (newElem "td") [children [txt]]
 
-makeScanRow :: Changer -> Killer -> Scan -> IO Elem
-makeScanRow c k sc@(Scan (x1,y1) (x2,y2) t) = do
+makeScanRow :: Changer -> Killer -> Double -> Scan -> IO Elem
+makeScanRow c k stepSize sc@(Scan (x1,y1) (x2,y2) t) = do
   let toReal = (/900) . (*25)
   row <- makeTableRow [toReal x1, toReal y1, toReal x2, toReal y2,
-                      fromIntegral $ getFrameCount sc,
+                      fromIntegral $ getFrameCount stepSize sc,
                       fromIntegral . round . (*(3.5/60)) . fromIntegral
-                                      . getFrameCount $ sc]
+                                      . getFrameCount stepSize $ sc]
   titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
   appendChild row =<< inCell titleLabel
@@ -274,13 +283,13 @@ voffset s = case choice s of
               Top -> top s
               Bottom -> bottom s
 
-getFrameCount :: Scan -> Int
-getFrameCount (Scan (x1, y1) (x2, y2) _)
-    | x1 == x2 = getSteps y1 y2
-    | otherwise = getSteps x1 x2
+getFrameCount :: Double -> Scan -> Int
+getFrameCount stepSize (Scan (x1, y1) (x2, y2) _)
+    | x1 == x2 = getSteps stepSize y1 y2
+    | otherwise = getSteps stepSize x1 x2
 
-getSteps :: Double -> Double -> Int
-getSteps begin end = round (abs (toMM (end-begin)) / step) :: Int
+getSteps :: Double -> Double -> Double -> Int
+getSteps stepSize begin end = round (abs (toMM (end-begin)) / stepSize ) :: Int
 
 -- | Convert pixel coordinates to real ones
 toMM :: Double -> Double
@@ -299,10 +308,6 @@ sleep = 0
 -- | Number of dark runs to perform on each scan.
 ndark :: Int
 ndark = 1
-
--- | Size of step between measurements
-step :: Double
-step = 0.1
 
 -- | Exposure time
 time :: Double
@@ -333,7 +338,7 @@ scanCommand Vertical s scan angle =
     let moveString = "umv sah " ++ showDouble (x1 s scan angle) ++ " tmp2 " ++ showDouble (z1 s scan angle)
         scanString = unwords
                      ["ccdtrans sav", showDouble $ y1 s scan, showDouble $ y2 s scan,
-                      show $ getFrameCount scan, show time, show sleep, "\"" ++ title scan ++ "\"",
+                      show $ getFrameCount (step s) scan, show time, show sleep, "\"" ++ title scan ++ "\"",
                       show ndark, "1"]
     in moveString ++ newline ++ scanString
 scanCommand Horizontal s scan angle =
@@ -342,7 +347,7 @@ scanCommand Horizontal s scan angle =
         end = x2 s scan angle
         zbegin = z1 s scan angle
         zend = z2 s scan angle
-        n = getFrameCount scan
+        n = getFrameCount (step s) scan
         scanString = "for(i=0;i<=" ++ show n ++ ";i+=1)" ++ newline
                      ++ "{" ++ newline
                      ++ "  y = " ++ showDouble begin ++ "+i*"
@@ -360,8 +365,6 @@ scansReady :: ScanState -> Bool
 scansReady s
     | null (scans s) = False
     | any invalidTitle . map title . scans $ s = False
-    | fileName s == "" = False
-    | ' ' `elem` fileName s = False
     | null (rotations s) = False
     | otherwise = True
 
