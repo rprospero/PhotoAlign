@@ -91,8 +91,9 @@ instance JSONable ScanState where
                  <*> defaultStep d
                  <*> ((d ~> "rotations") >>= fromJSON)
 
+defaultStep :: JSON -> Maybe Double
 defaultStep d =
-    case (d ~> "step") of
+    case d ~> "step" of
       Just x -> fromJSON x
       Nothing -> Just 0.1 -- Default step size from V0.1
 
@@ -141,10 +142,10 @@ updateHead m st
 axisScan :: Point -> Point -> Scan
 axisScan p p2 = Scan p (ending p p2) ""
     where
-      ending (x1,y1) (x2,y2) =
-          if abs (y2 - y1) > abs (x2 - x1)
-          then (x1, y2)
-          else (x2, y1)
+      ending (xa,ya) (xb,yb) =
+          if abs (yb - ya) > abs (xb - xa)
+          then (xa, yb)
+          else (xb, ya)
 
 mouseDown :: IO () -> IORef ScanState -> MouseData -> IO ()
 mouseDown action state m = do
@@ -205,9 +206,9 @@ makeTableCell x = do
   with (newElem "td") [children [txt]]
 
 makeScanRow :: Changer -> Killer -> ScanState -> Scan -> IO Elem
-makeScanRow c k st sc@(Scan (x1,y1) (x2,y2) t) = do
+makeScanRow c k st sc@(Scan (xa, ya) (xb, yb) t) = do
   let toReal = (/900) . (*25)
-  row <- makeTableRow [toReal x1, toReal y1, toReal x2, toReal y2,
+  row <- makeTableRow [toReal xa, toReal ya, toReal xb, toReal yb,
                       fromIntegral $ getFrameCount (step st) sc,
                       fromIntegral . round . (*(fromIntegral . length $ rotations st)) . (*(3.5/60)) . fromIntegral
                                       . getFrameCount (step st) $ sc]
@@ -273,22 +274,14 @@ scanRot s angle = "umv sar " ++ show (round $ angle*180/pi) ++ newline  ++ (inte
 data ScanDir = Horizontal | Vertical
 
 fileLineScan :: ScanState -> Double -> Scan -> String
-fileLineScan s angle sc@(Scan (x1, y1) (x2, y2) t) =
-    let r = rot angle
-    in
-      if x1 == x2
-      then scanCommand Vertical s sc angle
-      else scanCommand Horizontal s sc angle
-
-voffset :: ScanState -> Double
-voffset s = case choice s of
-              Top -> top s
-              Bottom -> bottom s
+fileLineScan s angle sc@(Scan (xa, _) (xb, _) _)
+    | xa == xb = scanCommand Vertical s sc angle
+    | otherwise = scanCommand Horizontal s sc angle
 
 getFrameCount :: Double -> Scan -> Int
-getFrameCount stepSize (Scan (x1, y1) (x2, y2) _)
-    | x1 == x2 = getSteps stepSize y1 y2
-    | otherwise = getSteps stepSize x1 x2
+getFrameCount stepSize (Scan (xa, ya) (xb, yb) _)
+    | xa == xa = getSteps stepSize ya yb
+    | otherwise = getSteps stepSize xa xb
 
 getSteps :: Double -> Double -> Double -> Int
 getSteps stepSize begin end = round (abs (toMM (end-begin)) / stepSize ) :: Int
@@ -299,9 +292,6 @@ toMM x = x*frameSize/imageSize
     where
       frameSize = 25 -- The size of the frame in mm
       imageSize = 900 -- The size of the image in pixels
-
-rot :: Double -> Double -> Double
-rot angle x = 12.5+(x-12.5)*cos angle
 
 -- | Number of seconds to sleep between runs in a scan
 sleep :: Double
@@ -328,9 +318,9 @@ y2 s (Scan _ (_,y) _)  =case choice s of
                           Top -> top s + toMM y
                           Bottom -> bottom s + toMM y
 z1 :: ScanState -> Scan -> Double -> Double
-z1 s (Scan (x,_) _ _) angle = (toMM x-12.5)* sin angle
+z1 _ (Scan (x,_) _ _) angle = (toMM x-12.5)* sin angle
 z2 :: ScanState -> Scan -> Double -> Double
-z2 s (Scan _ (x,_) _) angle = (toMM x-12.5)* sin angle
+z2 _ (Scan _ (x,_) _) angle = (toMM x-12.5)* sin angle
 
 showDouble :: Double -> String
 showDouble = printf "%.3f"
