@@ -15,6 +15,8 @@ import Haste.Events
 import Haste.Graphics.Canvas
 import Control.Monad (forM,forM_,(>=>))
 import Text.Printf
+import Prelude hiding (head, tail, init, last, read,(!!))
+import Safe (headMay,atMay)
 
 import JSON
 
@@ -25,7 +27,7 @@ data Scan = Scan {start :: Point,
 instance JSONable Scan where
     toJSON s = Dict [("title",Str . toJSString$ title s),
                     ("points",Arr . map toJSON $ [start s,stop s])]
-    fromJSON d@(Dict _) = Scan <$> (getJArr d "points" >>= (fromJSON . head))<*>(getJArr d "points" >>= (fromJSON . (!! 1))) <*> ((d ~> "title") >>= fromJSONStr)
+    fromJSON d@(Dict _) = Scan <$> (getJArr d "points" >>= headMay >>= fromJSON)<*>(getJArr d "points" >>= flip atMay 1 >>= fromJSON) <*> ((d ~> "title") >>= fromJSONStr)
     fromJSON _ = Nothing
 
 fromJSONStr :: JSON -> Maybe String
