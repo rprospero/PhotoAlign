@@ -10,6 +10,7 @@ import Data.IORef
 import Haste
 import Haste.Events
 import Haste.Graphics.Canvas
+import Haste.DOM
 import Haste.JSON
 import Data.List (elemIndex)
 import Prelude hiding (head, tail, init, last, read, (!!))
@@ -93,7 +94,7 @@ startDrag p (CalibState _ bx@(BoxMap a b c d)) = CalibState (Dragging corner) bx
 
 -- | Attach the proper drawing events to the calibration canvas
 attachEvents :: IORef CalibState -- ^ A reference to the global state of the calibration
-             -> Canvas -- ^ The svg element where the events are being handled
+             -> Elem -- ^ The svg element where the events are being handled
              -> IO () -- ^ A generic update action to perform after any event
              -> IO ()
 attachEvents calibState can action = do

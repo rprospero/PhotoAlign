@@ -54,8 +54,7 @@ main :: IO ()
 main = do
   calibState <- initCalibState
   scanState <- initScanState
-  rawBackground <- loadBitmap image
-  background <- newIORef rawBackground
+  background <- newIORef image
   imageName <- newIORef "IndianRoller2.jpg"
   mounts <- elemsByQS document "input[name='mount']"
 
@@ -75,7 +74,7 @@ main = do
          stepSize <- MaybeT $ elemById "stepSize"
 
 
-         can <- MaybeT $ getCanvasById "original"
+         can <- MaybeT $ elemById "original"
          acan <- MaybeT $ getCanvasById "aligned"
          lift $ attachEvents calibState can action
          lift $ attachScanEvents scanState acan action
@@ -123,13 +122,13 @@ controller action s = do
 
 -- | Loads a new image file
 updateBitmap :: IO ()  -- ^ The generic page update to perform once the
-             -> IORef Bitmap  -- ^ The IORef which stores the image
+             -> IORef URL  -- ^ The IORef which stores the image
                              -- function has finished.
              -> IORef String  -- ^ The IORef which stores the name of the file
              -> ()
              -> IO ()
 updateBitmap action background nameRef () = do
-    getFilePath "filePath" >>= loadBitmap >>= writeIORef background
+    getFilePath "filePath" >>= writeIORef background
 
     imageName <- Main.getFileName "filePath"
     writeIORef nameRef imageName
@@ -149,7 +148,7 @@ processDump c s result = logMaybeT "failed to decode JSON" $ do
   lift $ writeIORef c $ calib d
   lift $ writeIORef s $ scandata d
 
-updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> IO ()
+updatePage :: IORef ScanState -> IORef CalibState -> IORef URL -> IO ()
 updatePage scanState calibState background = do
   c <- readIORef calibState
   s <- readIORef scanState
@@ -162,7 +161,7 @@ updatePage scanState calibState background = do
   fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
 
   logMaybeT "page missing element for update" $ do
-    can1 <- MaybeT $ getCanvasById "original"
+    can1 <- MaybeT $ elemById "original"
     can2 <- MaybeT $ getCanvasById "aligned"
     tbl <- MaybeT $ elemById "scans"
 
@@ -179,19 +178,22 @@ toggleExport s = let
   in
     setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
 
-drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
+drawCalibration :: CalibState -> IORef URL -> Elem -> IO ()
 drawCalibration c background can = do
-  rawBackground <- readIORef background
-  render can $ do
-    scale (0.2,0.2) $ draw rawBackground (0,0)
-    lineWidth 1 . color (RGB 255 0 255) . stroke $ boxShape c
+  back <- readIORef background
+  setAttrById "originalImage" "xlink:href" back
+  -- render can $ do
+  --   scale (0.2,0.2) $ draw rawBackground (0,0)
+  --   lineWidth 1 . color (RGB 255 0 255) . stroke $ boxShape c
+  return ()
 
-drawAligned :: ScanState -> CalibState -> IORef Bitmap -> Canvas -> IO ()
+drawAligned :: ScanState -> CalibState -> IORef URL -> Canvas -> IO ()
 drawAligned s c background can = do
-  rawBackground <- readIORef background
-  render can $ do
-    alignImage (900,900) c $ scale (0.2,0.2) $ draw rawBackground (0,0)
-    scanShape s
+  back <- readIORef background
+  setAttrById "alignedImage" "xlink:href" back
+  -- render can $ do
+  --   -- alignImage (900,900) c $ scale (0.2,0.2) $ draw rawBackground (0,0)
+  --   scanShape s
   return ()
 
 fileSave :: ElemID -> String -> IO()
