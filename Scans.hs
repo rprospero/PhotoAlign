@@ -177,7 +177,7 @@ populateTable c k st e = do
   clearChildren e
   header <- makeTableHeader
   appendChild e header
-  _ <- forM (reverse $ scans st) (makeScanRow c k (step st) >=> appendChild e)
+  _ <- forM (reverse $ scans st) (makeScanRow c k st >=> appendChild e)
   return ()
 
 makeTableHeader :: IO Elem
@@ -202,13 +202,13 @@ makeTableCell x = do
   txt <- newTextElem $ show x
   with (newElem "td") [children [txt]]
 
-makeScanRow :: Changer -> Killer -> Double -> Scan -> IO Elem
-makeScanRow c k stepSize sc@(Scan (x1,y1) (x2,y2) t) = do
+makeScanRow :: Changer -> Killer -> ScanState -> Scan -> IO Elem
+makeScanRow c k st sc@(Scan (x1,y1) (x2,y2) t) = do
   let toReal = (/900) . (*25)
   row <- makeTableRow [toReal x1, toReal y1, toReal x2, toReal y2,
-                      fromIntegral $ getFrameCount stepSize sc,
-                      fromIntegral . round . (*(3.5/60)) . fromIntegral
-                                      . getFrameCount stepSize $ sc]
+                      fromIntegral $ getFrameCount (step st) sc,
+                      fromIntegral . round . (*(fromIntegral . length $ rotations st)) . (*(3.5/60)) . fromIntegral
+                                      . getFrameCount (step st) $ sc]
   titleLabel <- makeTitleLabel t
   deleteButton <- makeDeleteButton
   appendChild row =<< inCell titleLabel
