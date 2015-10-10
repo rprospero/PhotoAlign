@@ -65,9 +65,9 @@ executable PhotoAlign
   
   -- Other library packages from which modules are imported.
   if flag(haste-inst)
-    build-depends:       base >=4.8 && <4.9,haste-lib,transformers,errors
+    build-depends:       base >=4.8 && <4.9,haste-lib,transformers,errors, safe
   else
-    build-depends:       base >=4.8 && <4.9,haste-compiler,transformers,errors
+    build-depends:       base >=4.8 && <4.9,haste-compiler,transformers,errors, safe
   -- Directories containing source files.
   -- hs-source-dirs:      
   

@@ -12,11 +12,13 @@ import Haste.Foreign
 import Haste.Graphics.Canvas
 import Haste.JSON
 import Control.Error.Safe (rightMay)
-import Control.Monad (liftM,(>=>))
+import Control.Monad ((>=>))
 import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(MaybeT,runMaybeT))
 import Data.IORef
 import Data.Monoid
+import Prelude hiding (head, tail, init, last, read)
+import Safe (readMay,headMay)
 
 import Calibrate
 import Scans
@@ -86,8 +88,8 @@ main = do
   action
 
 -- | Get the value from an element
-valueById :: ElemID -> MaybeT IO String
-valueById = MaybeT  . elemById >=> flip getProp "value"
+valueById :: (Read a) => ElemID -> MaybeT IO a
+valueById = MaybeT  . elemById >=> flip getProp "value" >=> upgrade . readMay
 
 setAttrById :: ElemID -> PropID -> String -> IO ()
 setAttrById e p v =
@@ -101,21 +103,21 @@ setAttrById e p v =
 controller :: IO () -> IORef ScanState -> IO ()
 controller action s = do
   runMaybeT $ do
-    r <- valueById "rotations"
-    lift $ modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
+    r <- valueById "rotations" >>= upgrade . mapM readMay . words
+    lift $ modifyIORef' s (\x -> x{rotations=map (*(pi/180)) r})
 
   runMaybeT $ do
     size <- valueById "stepSize"
-    lift $ modifyIORef' s (\x -> x{step=read size})
+    lift $ modifyIORef' s (\x -> x{step=size})
 
   runMaybeT $ do
     upper <- valueById "top"
     lower <- valueById "bottom"
     offs <- valueById "offset"
-    [mount] <- elemsByQS document "input[name='mount']:checked"
-    c <- getProp mount "value"
+    mount <- elemsByQS document "input[name='mount']:checked" >>= upgrade . headMay
+    c <- getProp mount "value" >>= upgrade . readMay
 
-    lift $ modifyIORef' s (\x -> x{top=read upper,bottom=read lower,offset=read offs,choice=read c})
+    lift $ modifyIORef' s (\x -> x{top=upper,bottom=lower,offset=offs,choice=c})
 
   action
 
@@ -143,7 +145,7 @@ processDump :: IORef CalibState -- ^ The global state of the calibration
               -> JSString -- ^ The text of the JSON file
               -> IO ()
 processDump c s result = logMaybeT "failed to decode JSON" $ do
-  d <- MaybeT . return $ (rightMay . decodeJSON) result >>= fromJSON
+  d <- upgrade $ (rightMay . decodeJSON) result >>= fromJSON
   lift $ writeIORef c $ calib d
   lift $ writeIORef s $ scandata d
 
@@ -204,6 +206,9 @@ logMaybeT err x = do
     case val of
       Just _ -> return ()
       Nothing -> print err >> return ()
+
+upgrade :: (Monad m) => Maybe a -> MaybeT m a
+upgrade = MaybeT . return
 
 encodeURIComponent :: String -> IO String
 encodeURIComponent = ffi "encodeURIComponent"
