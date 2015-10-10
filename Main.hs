@@ -102,15 +102,15 @@ setAttrById e p v =
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
 controller action s = do
-  runMaybeT $ do
+  logMaybeT "Could not read rotations" $ do
     r <- valueById "rotations" >>= upgrade . mapM readMay . words
     lift $ modifyIORef' s (\x -> x{rotations=map (*(pi/180)) r})
 
-  runMaybeT $ do
+  logMaybeT "Could not load element step size"$ do
     size <- valueById "stepSize"
     lift $ modifyIORef' s (\x -> x{step=size})
 
-  runMaybeT $ do
+  logMaybeT "Could not read offset elements" $ do
     upper <- valueById "top"
     lower <- valueById "bottom"
     offs <- valueById "offset"
