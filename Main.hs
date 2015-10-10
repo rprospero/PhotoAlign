@@ -17,7 +17,7 @@ import Control.Monad.Trans.Class (lift)
 import Control.Monad.Trans.Maybe (MaybeT(MaybeT,runMaybeT))
 import Data.IORef
 import Data.Monoid
-import Prelude hiding (head, tail, init, last, read)
+import Prelude hiding (head, tail, init, last, read,(!!))
 import Safe (readMay,headMay)
 
 import Calibrate
