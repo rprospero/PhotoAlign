@@ -30,10 +30,6 @@ instance JSONable StateDump where
     toJSON s = Dict . zip ["calib","scans"] $ [toJSON $ calib s, toJSON $ scandata s]
     fromJSON d = StateDump <$> (d ~~> "calib") <*> (d ~~> "scans")
 
--- | Default image file
-image :: URL
-image = "IndianRoller2.jpg"
-
 -- | Given a file selection element, returns a URL to the selected file
 getFilePath :: ElemID -> IO URL
 getFilePath = ffi "(function(x){return window.URL.createObjectURL(document.getElementById(x).files[0]);})"
@@ -54,11 +50,10 @@ main :: IO ()
 main = do
   calibState <- initCalibState
   scanState <- initScanState
-  background <- newIORef image
   imageName <- newIORef "IndianRoller2.jpg"
   mounts <- elemsByQS document "input[name='mount']"
 
-  let action = updatePage scanState calibState background
+  let action = updatePage scanState calibState
       contrl = controller action scanState
       triggerController evt x = onEvent x evt $ const contrl
       mainErr = "Page Missing element expected by Main"
@@ -68,7 +63,7 @@ main = do
   logMaybeT mainErr $ do
          filePath <- MaybeT $ elemById "filePath"
          loadPath <- MaybeT $ elemById "loadPath"
-         _ <- lift $ onEvent filePath Change $ updateBitmap action background imageName
+         _ <- lift $ onEvent filePath Change $ updateBitmap action imageName
          _ <- lift $ onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
          rots <- MaybeT $ elemById "rotations"
          stepSize <- MaybeT $ elemById "stepSize"
@@ -122,13 +117,15 @@ controller action s = do
 
 -- | Loads a new image file
 updateBitmap :: IO ()  -- ^ The generic page update to perform once the
-             -> IORef URL  -- ^ The IORef which stores the image
-                             -- function has finished.
              -> IORef String  -- ^ The IORef which stores the name of the file
              -> ()
              -> IO ()
-updateBitmap action background nameRef () = do
-    getFilePath "filePath" >>= writeIORef background
+updateBitmap action nameRef () = do
+    img <- getFilePath "filePath"
+
+    setAttrById "originalImage" "xlink:href" img
+    setAttrById "alignedImage" "xlink:href" img
+
 
     imageName <- Main.getFileName "filePath"
     writeIORef nameRef imageName
@@ -148,14 +145,14 @@ processDump c s result = logMaybeT "failed to decode JSON" $ do
   lift $ writeIORef c $ calib d
   lift $ writeIORef s $ scandata d
 
-updatePage :: IORef ScanState -> IORef CalibState -> IORef URL -> IO ()
-updatePage scanState calibState background = do
+updatePage :: IORef ScanState -> IORef CalibState -> IO ()
+updatePage scanState calibState = do
   c <- readIORef calibState
   s <- readIORef scanState
 
   toggleExport s
 
-  let action = updatePage scanState calibState background
+  let action = updatePage scanState calibState
 
   fileSave "exportLink" $ toFile s
   fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
@@ -167,8 +164,8 @@ updatePage scanState calibState background = do
 
     lift $ populateTable (updateTitle action scanState) (dropScan action scanState) s tbl
 
-    lift $ drawAligned s c background can2
-    lift $ drawCalibration c background can1
+    lift $ drawAligned s c can2
+    lift $ drawCalibration c can1
 
 toggleExport :: ScanState -> IO ()
 toggleExport s = let
@@ -178,19 +175,15 @@ toggleExport s = let
   in
     setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
 
-drawCalibration :: CalibState -> IORef URL -> Elem -> IO ()
-drawCalibration c background can = do
-  back <- readIORef background
-  setAttrById "originalImage" "xlink:href" back
+drawCalibration :: CalibState -> Elem -> IO ()
+drawCalibration c can = do
   -- render can $ do
   --   scale (0.2,0.2) $ draw rawBackground (0,0)
   --   lineWidth 1 . color (RGB 255 0 255) . stroke $ boxShape c
   return ()
 
-drawAligned :: ScanState -> CalibState -> IORef URL -> Canvas -> IO ()
-drawAligned s c background can = do
-  back <- readIORef background
-  setAttrById "alignedImage" "xlink:href" back
+drawAligned :: ScanState -> CalibState -> Canvas -> IO ()
+drawAligned s c can = do
   -- render can $ do
   --   -- alignImage (900,900) c $ scale (0.2,0.2) $ draw rawBackground (0,0)
   --   scanShape s
