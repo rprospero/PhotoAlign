@@ -50,6 +50,7 @@ main = do
   Just filePath <- elemById "filePath"
   Just loadPath <- elemById "loadPath"
   Just rots <- elemById "rotations"
+  Just stepSize <- elemById "stepSize"
   calibState <- initCalibState
   scanState <- initScanState
   rawBackground <- loadBitmap image
@@ -78,8 +79,8 @@ main = do
 
   _ <- onEvent filePath Change $ updateBitmap action background imageName
   _ <- onEvent loadPath Change $ const $ readAsText "processDump" "loadPath"
-  mapM_ (triggerController Change) $ mounts ++ [rots, upper, lower, offs]
-  mapM_ (triggerController KeyDown) [rots, upper, lower, offs]
+  mapM_ (triggerController Change) $ mounts ++ [stepSize,rots, upper, lower, offs]
+  mapM_ (triggerController KeyDown) [stepSize, rots, upper, lower, offs]
   action
 
 -- | Read text inpure and update the global variables
@@ -89,6 +90,11 @@ controller action s = do
 
   r <- getProp rots "value"
   modifyIORef' s (\x -> x{rotations=map ((*(pi/180)) . read) . words$r})
+
+  Just stepSize <- elemById "stepSize"
+
+  size <- getProp stepSize "value"
+  modifyIORef' s (\x -> x{step=read size})
 
   upper <- (fromJust <$> elemById "top") >>= flip getProp "value"
   lower <- (fromJust <$> elemById "bottom") >>= flip getProp "value"
