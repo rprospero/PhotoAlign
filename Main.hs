@@ -60,10 +60,11 @@ main = do
   let action = updatePage scanState calibState background
       contrl = controller action scanState
       triggerController evt x = onEvent x evt $ const contrl
+      mainErr = "Page Missing element expected by Main"
 
   export "processDump" (processDump calibState scanState)
 
-  ignoreMaybeT $ do
+  logMaybeT mainErr $ do
          filePath <- MaybeT $ elemById "filePath"
          loadPath <- MaybeT $ elemById "loadPath"
          _ <- lift $ onEvent filePath Change $ updateBitmap action background imageName
@@ -88,10 +89,13 @@ main = do
 valueById :: ElemID -> MaybeT IO String
 valueById = MaybeT  . elemById >=> flip getProp "value"
 
-setAttrById :: ElemID -> PropID -> String -> MaybeT IO ()
-setAttrById e p v =  do
-  el <- MaybeT $  elemById e
-  setAttr el p v
+setAttrById :: ElemID -> PropID -> String -> IO ()
+setAttrById e p v =
+    let
+        err = "Failed to set " ++ p ++ "on page element " ++ e
+    in logMaybeT err $ do
+      el <- MaybeT $  elemById e
+      setAttr el p v
 
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
@@ -128,9 +132,8 @@ updateBitmap action background nameRef () = do
     imageName <- Main.getFileName "filePath"
     writeIORef nameRef imageName
 
-    runMaybeT $ do
-      setAttrById "saveLink" "download" $ imageName <> ".json"
-      setAttrById "exportLink" "download" $ imageName <> ".txt"
+    setAttrById "saveLink" "download" $ imageName <> ".json"
+    setAttrById "exportLink" "download" $ imageName <> ".txt"
 
     action
 
@@ -139,39 +142,32 @@ processDump :: IORef CalibState -- ^ The global state of the calibration
               -> IORef ScanState -- ^ The global state of the scans
               -> JSString -- ^ The text of the JSON file
               -> IO ()
-processDump c s result = ignoreMaybeT $ do
+processDump c s result = logMaybeT "failed to decode JSON" $ do
   d <- MaybeT . return $ (rightMay . decodeJSON) result >>= fromJSON
   lift $ writeIORef c $ calib d
   lift $ writeIORef s $ scandata d
-
-  -- case decodeJSON result of
-  --   Left _ -> return ()
-  --   Right json -> case fromJSON json of
-  --                  Just d -> do
-  --                          writeIORef c $ calib d
-  --                          writeIORef s $ scandata d
-  --                  Nothing -> return ()
 
 updatePage :: IORef ScanState -> IORef CalibState -> IORef Bitmap -> IO ()
 updatePage scanState calibState background = do
   c <- readIORef calibState
   s <- readIORef scanState
 
-  Just can1 <- getCanvasById "original"
-  Just can2 <- getCanvasById "aligned"
-  Just tbl <- elemById "scans"
-
   toggleExport s
 
   let action = updatePage scanState calibState background
 
-  populateTable (updateTitle action scanState) (dropScan action scanState) s tbl
-
-  drawAligned s c background can2
-  drawCalibration c background can1
-
   fileSave "exportLink" $ toFile s
   fileSave "saveLink" . fromJSStr .  encodeJSON . toJSON $ StateDump c s
+
+  logMaybeT "page missing element for update" $ do
+    can1 <- MaybeT $ getCanvasById "original"
+    can2 <- MaybeT $ getCanvasById "aligned"
+    tbl <- MaybeT $ elemById "scans"
+
+    lift $ populateTable (updateTitle action scanState) (dropScan action scanState) s tbl
+
+    lift $ drawAligned s c background can2
+    lift $ drawCalibration c background can1
 
 toggleExport :: ScanState -> IO ()
 toggleExport s = let
@@ -179,7 +175,7 @@ toggleExport s = let
         then ""
         else " disabled"
   in
-    ignoreMaybeT $ setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
+    setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
 
 drawCalibration :: CalibState -> IORef Bitmap -> Canvas -> IO ()
 drawCalibration c background can = do
@@ -200,10 +196,14 @@ fileSave :: ElemID -> String -> IO()
 fileSave e contents = do
   encoded <- encodeURIComponent contents
   let uri = "data:text/plain;charset=utf-8," <> encoded
-  ignoreMaybeT $ setAttrById e "href" uri
+  setAttrById e "href" uri
 
-ignoreMaybeT :: (Monad m) => MaybeT m () -> m ()
-ignoreMaybeT x = runMaybeT x >> return ()
+logMaybeT :: String -> MaybeT IO () -> IO ()
+logMaybeT err x = do
+    val <- runMaybeT x
+    case val of
+      Just _ -> return ()
+      Nothing -> print err >> return ()
 
 encodeURIComponent :: String -> IO String
 encodeURIComponent = ffi "encodeURIComponent"
