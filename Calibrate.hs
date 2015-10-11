@@ -17,6 +17,7 @@ import Prelude hiding (head, tail, init, last, read, (!!))
 import Safe (headMay, atMay)
 
 import JSON
+import Util
 
 data Corner = NW | NE | SW | SE
             deriving (Show,Eq)
@@ -119,8 +120,11 @@ mouseDown action state m = do
 mouseMove :: IO () -> IORef CalibState -> MouseData -> IO ()
 mouseMove action state m = do
   modifyIORef' state $ mouseMove' (floatPair $ mouseCoords m)
+  s <- readIORef state
+  case mouse s of
+    Free -> return ()
+    Dragging _ -> updateLines $ box s
   action
-
 
 mouseMove' :: Point -> CalibState -> CalibState
 mouseMove' _ st@(CalibState Free _) = st
@@ -133,6 +137,19 @@ mouseMove' stop (CalibState ms@(Dragging SW) (BoxMap a _ c d)) =
 mouseMove' stop (CalibState ms@(Dragging NW) (BoxMap _ b c d)) =
     CalibState ms (BoxMap stop b c d)
 
+updateLines :: BoxMap -> IO ()
+updateLines (BoxMap a b c d) = do
+    lineBetween "l1" a b
+    lineBetween "l2" b c
+    lineBetween "l3" c d
+    lineBetween "l4" d a
+
+lineBetween :: ElemID -> Point -> Point -> IO ()
+lineBetween el (xa,ya) (xb,yb) = do
+    _ <- sequence $ zipWith (setAttrById el)
+                 ["x1","x2","y1","y2"]
+                 (map show [xa,xb,ya,yb])
+    return ()
 
 floatPair :: (Int, Int) -> Point
 floatPair (x,y) = (fromIntegral x, fromIntegral y)

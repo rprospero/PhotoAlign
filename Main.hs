@@ -23,6 +23,7 @@ import Safe (readMay,headMay)
 import Calibrate
 import Scans
 import JSON
+import Util
 
 data StateDump = StateDump {calib ::CalibState,
                             scandata ::ScanState}
@@ -70,9 +71,9 @@ main = do
 
 
          can <- MaybeT $ elemById "original"
-         acan <- MaybeT $ getCanvasById "aligned"
+         acan <- MaybeT $ elemById "aligned"
          lift $ attachEvents calibState can action
-         lift $ attachScanEvents scanState acan action
+         -- lift $ attachScanEvents scanState acan action
          upper <- MaybeT $ elemById "top"
          lower <- MaybeT $ elemById "bottom"
          offs <- MaybeT $ elemById "offset"
@@ -84,14 +85,6 @@ main = do
 -- | Get the value from an element
 valueById :: (Read a) => ElemID -> MaybeT IO a
 valueById = MaybeT  . elemById >=> flip getProp "value" >=> upgrade . readMay
-
-setAttrById :: ElemID -> PropID -> String -> IO ()
-setAttrById e p v =
-    let
-        err = "Failed to set " ++ p ++ "on page element " ++ e
-    in logMaybeT err $ do
-      el <- MaybeT $  elemById e
-      setAttr el p v
 
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
@@ -159,13 +152,12 @@ updatePage scanState calibState = do
 
   logMaybeT "page missing element for update" $ do
     can1 <- MaybeT $ elemById "original"
-    can2 <- MaybeT $ getCanvasById "aligned"
+    can2 <- MaybeT $ elemById "aligned"
     tbl <- MaybeT $ elemById "scans"
 
     lift $ populateTable (updateTitle action scanState) (dropScan action scanState) s tbl
 
     lift $ drawAligned s c can2
-    lift $ drawCalibration c can1
 
 toggleExport :: ScanState -> IO ()
 toggleExport s = let
@@ -175,14 +167,7 @@ toggleExport s = let
   in
     setAttrById "exportLink" "class" $ "btn btn-primary" ++ c
 
-drawCalibration :: CalibState -> Elem -> IO ()
-drawCalibration c can = do
-  -- render can $ do
-  --   scale (0.2,0.2) $ draw rawBackground (0,0)
-  --   lineWidth 1 . color (RGB 255 0 255) . stroke $ boxShape c
-  return ()
-
-drawAligned :: ScanState -> CalibState -> Canvas -> IO ()
+drawAligned :: ScanState -> CalibState -> Elem -> IO ()
 drawAligned s c can = do
   -- render can $ do
   --   -- alignImage (900,900) c $ scale (0.2,0.2) $ draw rawBackground (0,0)
@@ -194,13 +179,6 @@ fileSave e contents = do
   encoded <- encodeURIComponent contents
   let uri = "data:text/plain;charset=utf-8," <> encoded
   setAttrById e "href" uri
-
-logMaybeT :: String -> MaybeT IO () -> IO ()
-logMaybeT err x = do
-    val <- runMaybeT x
-    case val of
-      Just _ -> return ()
-      Nothing -> print err >> return ()
 
 upgrade :: (Monad m) => Maybe a -> MaybeT m a
 upgrade = MaybeT . return
