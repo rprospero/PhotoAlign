@@ -205,10 +205,10 @@ f >< (a,b) = (f a, f b)
 -- is rotated and expanded into the whole image
 alignImage :: Point -- ^ The width and height of the target canvas
            -> CalibState -- ^ The calibration being used for alignment
-           -> Picture () -- ^ The image to align
-           -> Picture ()
+           -> IO ()
 alignImage size st = do
   let angle = getAngle st
       scl = getScale size st
       cen = getCenter st
-  translate ((/2) >< size) . scale (sqrt scl, sqrt scl) . rotate (-angle) . translate ((/(-1)) >< cen)
+  -- translate ((/2) >< size) . scale (sqrt scl, sqrt scl) . rotate (-angle) . translate ((/(-1)) >< cen)
+  setAttrById "aligned" "transform" $ "rotate(" ++ show (angle*(-180)/pi) ++")"

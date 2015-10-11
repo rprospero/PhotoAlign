@@ -9,7 +9,6 @@ import Haste
 import Haste.DOM
 import Haste.Events
 import Haste.Foreign
-import Haste.Graphics.Canvas
 import Haste.JSON
 import Control.Error.Safe (rightMay)
 import Control.Monad ((>=>))
@@ -172,6 +171,7 @@ drawAligned s c can = do
   -- render can $ do
   --   -- alignImage (900,900) c $ scale (0.2,0.2) $ draw rawBackground (0,0)
   --   scanShape s
+  alignImage (900,900) c
   return ()
 
 fileSave :: ElemID -> String -> IO()
