@@ -348,7 +348,7 @@ scanCommand Horizontal s scan angle =
                      ++ showDouble ((zend-zbegin)/fromIntegral n) ++ newline
                      ++ "  umv sah y"  ++ newline
                      ++ "  umv tmp2 x" ++ newline
-                     ++ unwords ["  ccdacq",show time,"\"" ++ title scan ++ "\""] ++ newline
+                     ++ unwords ["  ccdacq_nodark",show time,"\"" ++ title scan ++ "\""] ++ newline
                      ++ "}" ++ newline
     in moveString ++ newline ++ scanString
 
