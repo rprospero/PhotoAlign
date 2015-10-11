@@ -280,7 +280,7 @@ fileLineScan s angle sc@(Scan (xa, _) (xb, _) _)
 
 getFrameCount :: Double -> Scan -> Int
 getFrameCount stepSize (Scan (xa, ya) (xb, yb) _)
-    | xa == xa = getSteps stepSize ya yb
+    | xa == xb = getSteps stepSize ya yb
     | otherwise = getSteps stepSize xa xb
 
 getSteps :: Double -> Double -> Double -> Int
