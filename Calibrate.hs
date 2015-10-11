@@ -207,8 +207,9 @@ alignImage :: Point -- ^ The width and height of the target canvas
            -> CalibState -- ^ The calibration being used for alignment
            -> IO ()
 alignImage size st = do
-  let angle = getAngle st
-      scl = getScale size st
-      cen = getCenter st
+  let angle = "rotate(" ++ show ((-180)/pi*getAngle st) ++ ")"
+      scl = "scale(" ++ show (sqrt (getScale size st)) ++ ")"
+      (x, y) = getCenter st
+      cen = "translate(" ++ show (-x) ++ " " ++ show (-y) ++ ")"
   -- translate ((/2) >< size) . scale (sqrt scl, sqrt scl) . rotate (-angle) . translate ((/(-1)) >< cen)
-  setAttrById "aligned" "transform" $ "rotate(" ++ show (angle*(-180)/pi) ++")"
+  setAttrById "alignedImage" "transform" $ unwords [angle, scl, cen]
