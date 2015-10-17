@@ -206,10 +206,11 @@ f >< (a,b) = (f a, f b)
 alignImage :: Point -- ^ The width and height of the target canvas
            -> CalibState -- ^ The calibration being used for alignment
            -> IO ()
-alignImage size st = do
+alignImage size@(w,h) st = do
   let angle = "rotate(" ++ show ((-180)/pi*getAngle st) ++ ")"
-      scl = "scale(" ++ show (sqrt (getScale size st)) ++ ")"
+      scale = sqrt $ getScale size st
+      scl = "scale(" ++ show scale ++ ")"
       (x, y) = getCenter st
-      cen = "translate(" ++ show (-x) ++ " " ++ show (-y) ++ ")"
+      cen = "translate(" ++ show (w/2/scale-x) ++ " " ++ show (h/2/scale-y) ++ ")"
   -- translate ((/2) >< size) . scale (sqrt scl, sqrt scl) . rotate (-angle) . translate ((/(-1)) >< cen)
-  setAttrById "alignedImage" "transform" $ unwords [angle, scl, cen]
+  setAttrById "alignedImage" "transform" $ unwords [scl, angle, cen]
