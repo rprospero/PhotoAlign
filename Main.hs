@@ -82,8 +82,8 @@ main = do
   action
 
 -- | Get the value from an element
-valueById :: (Read a) => ElemID -> MaybeT IO a
-valueById = MaybeT  . elemById >=> flip getProp "value" >=> upgrade . readMay
+valueById :: ElemID -> MaybeT IO String
+valueById = MaybeT  . elemById >=> flip getProp "value"
 
 -- | Read text inpure and update the global variables
 controller :: IO () -> IORef ScanState -> IO ()
@@ -93,17 +93,18 @@ controller action s = do
     lift $ modifyIORef' s (\x -> x{rotations=map (*(pi/180)) r})
 
   logMaybeT "Could not load element step size"$ do
-    size <- valueById "stepSize"
+    size <- valueById "stepSize" >>= upgrade . readMay
     lift $ modifyIORef' s (\x -> x{step=size})
 
   logMaybeT "Could not read offset elements" $ do
-    upper <- valueById "top"
-    lower <- valueById "bottom"
-    offs <- valueById "offset"
+    upper <- valueById "top" >>= upgrade . readMay
+    lower <- valueById "bottom" >>= upgrade . readMay
+    offs <- valueById "offset" >>= upgrade . readMay
     mount <- elemsByQS document "input[name='mount']:checked" >>= upgrade . headMay
     c <- getProp mount "value" >>= upgrade . readMay
 
-    lift $ modifyIORef' s (\x -> x{top=upper,bottom=lower,offset=offs,choice=c})
+    lift $ modifyIORef' s (\x -> x{top=upper,bottom=lower,
+                                  offset=offs, choice=c})
 
   action
 
